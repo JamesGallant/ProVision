@@ -2,7 +2,7 @@
 #shiny app for analysing mass spec data
 #creators James Gallant, Tiaan Heunis
 #Copyright 2019
-#To do: dynamic infobox, may need to render different boxes
+#To do: clean up datahandling tab with solid interactions
 
 #Libraries we need
 require(shinydashboard)
@@ -82,7 +82,7 @@ ui <- dashboardPage(
                                                             width = 200),
                                                div(style = "text-align:center", "Enable submit button"),
                                                actionButton(inputId = "anno_enable",
-                                                            label = "Enable submit button",
+                                                            label = "Redo",
                                                             icon = icon("backward"),
                                                             width = 200)),
                                       menuItem("Filter valid values",
@@ -127,14 +127,29 @@ ui <- dashboardPage(
                                                div(style = "text-align:center", "Download data filtered", 
                                                    br(), "for contaminants"),
                                                downloadButton(outputId = "filt1_download",
-                                                              label = "Contam filtered data",
+                                                              label = "Processed data",
                                                               style="display: block; margin: 0 auto; width: 200px;color: black;")))),
                    #qualityMetrics sidebar
                    conditionalPanel(condition = "input.main_tabs == 'quality_metrics'",
                                     sidebarMenu(
                                       #QQ-plots
                                       menuItem("Q-Q plots",
-                                               icon = icon("line-chart")),
+                                               icon = icon("line-chart"),
+                                               actionButton(inputId = "qqRender",
+                                                            label = "Generate plot(s)",
+                                                            icon = icon("play-circle"),
+                                                            style ="display: block; margin: 0 auto; width: 200px;color: black;"),
+                                               actionButton(inputId = "qqPrevious",
+                                                            label = "Previous",
+                                                            icon = icon("backward"),
+                                                            style="display:inline-block;width:40%;text-align: center;"),
+                                               actionButton(inputId = "qqNext",
+                                                            label = "Next",
+                                                            icon = icon("forward"),
+                                                            style="display:inline-block;width:40%;text-align: center;"),
+                                               downloadButton(outputId = "qqPlotDownload",
+                                                              label = "Download",
+                                                              style="display: block; margin: 0 auto; width: 200px;color: black;")),
                                       #scatter plots
                                       menuItem("Scatter plots",
                                                icon = icon("line-chart")),
@@ -174,7 +189,16 @@ ui <- dashboardPage(
                             #QC tab
                             tabPanel(title = "Quality metrics",
                                      value = "quality_metrics",
-                                     icon = icon("chart-line")),
+                                     icon = icon("chart-line"),
+                                     fluidPage(
+                                       fluidRow(
+                                         plotOutput("qqPlot"),
+                                         plotOutput("ScatterPlot")
+                                       ),
+                                       fluidRow(
+                                         plotOutput("correlloPlot"),
+                                         plotOutput("pcaPlot"))
+                                     )),
                             #statistics tab
                             tabPanel(title = "Statistics",
                                      value = "statistics",
@@ -459,7 +483,29 @@ server <- function(input, output, session) {
   ###### info boxes #####
 
   #information boxes: These display dynamic help for data upload
+
+  infovals = reactiveValues(countervalue = 0)
   
+  observeEvent(input$activate_filter, {
+    infovals$countervalue <- infovals$countervalue + 1
+  })
+  
+  observeEvent(input$submit_anno, {
+    infovals$countervalue <- infovals$countervalue + 1
+  })
+  
+  observeEvent(input$anno_enable, {
+    infovals$countervalue <- infovals$countervalue - 1
+  })
+  
+  observeEvent(input$filter_valids, {
+    infovals$countervalue <- infovals$countervalue + 1
+  })
+  
+  observeEvent(input$start_imputation, {
+    infovals$countervalue <- infovals$countervalue + 1
+  })
+
   output$data_handling_info <- renderValueBox({
     #check if data is loaded
     if (is.null(input$user_file)) {
@@ -468,7 +514,7 @@ server <- function(input, output, session) {
               icon = icon("info"),
               color = "olive")
       
-    } else if (input$activate_filter == 0) {
+    } else if (infovals$countervalue == 0) {
       infoBox(title = "Information",
               value = div("Next step:",
                           br(),
@@ -477,7 +523,7 @@ server <- function(input, output, session) {
               color = "olive",
               subtitle = "Two unique peptides is the default")
       
-    } else if (input$activate_filter == 1 ) {
+    } else if (infovals$countervalue == 1 ) {
       infoBox(title = "Information",
               value = div("Next step:",
                           br(),
@@ -486,14 +532,37 @@ server <- function(input, output, session) {
               icon = icon("info"),
               color = "olive")
       
-      } else if (input$submit_anno > 0 && input$activate_filter > 0 ) {
+      } else if (infovals$countervalue == 2 ) {
         infoBox(title = "Information",
                 value = div("Next step:",
                             br(),
-                            "go to imputation"),
-                subtitle = "reps get the same name",
+                            "valid value filtering"),
+                subtitle = "Recommended choices are autoselected",
                 icon = icon("info"),
                 color = "olive") 
+        
+      } else if (infovals$countervalue == 3) {
+        infoBox(title = "Information",
+                value = div("Next step:",
+                            br(),
+                            "Impute missing data"),
+                subtitle = "Optional step but recommended",
+                icon = icon("info"),
+                color = "olive")
+      } else if (infovals$countervalue == 4) {
+        infoBox(title = "Information",
+                value = div("Next step:",
+                            br(),
+                            "Go to next tab"),
+                subtitle = "Perform QC metrics assesment",
+                icon = icon("info"),
+                color = "olive")
+      } else if (infovals$countervalue > 4) {
+        infoBox(title = "Information",
+                value = "Help is out of bounds",
+                subtitle = "Data calculations are not affected",
+                icon = icon("info"),
+                color = "red")
       }
   })
   
@@ -576,9 +645,22 @@ server <- function(input, output, session) {
   )
 #################################################################################
 ######### Quality Metrics ############################
+output$qqPlot <- renderPlot({
+  processed_data <- processed_data()
+  anno_data <- anno_data()
+  GeneNames <- processed_data$GeneNames
+  processed_data$GeneNames <- NULL
+  colnames(processed_data) <- anno_data$ID
+  normalDistro <- rnorm(n = nrow(processed_data))
+  for (i in 1:ncol(processed_data)) {
+    
+    ylabname <- colnames(processed_data[i])
+    print(ylabname)
+   p <- qqnorm(y = processed_data[[i]], ylab = ylabname)
+   return(p)
+  }
   
-  ##### imputation ######
- 
+})
   
 
 } #server close
