@@ -15,6 +15,7 @@ require(DT)
 require(shinyjs)
 require(stringr)
 require(rhandsontable)
+require(colourpicker)
 
 #starting cod e for the app
 
@@ -139,14 +140,38 @@ ui <- dashboardPage(
                                                             label = "Generate plot(s)",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
-                                               actionButton(inputId = "qqPrevious",
-                                                            label = "Previous",
-                                                            icon = icon("backward"),
-                                                            style="display:inline-block;width:40%;text-align: center;"),
-                                               actionButton(inputId = "qqNext",
-                                                            label = "Next",
-                                                            icon = icon("forward"),
-                                                            style="display:inline-block;width:40%;text-align: center;"),
+                                               br(),
+                                               div(style = "text-align:center; color: white, ", 
+                                                   tags$b("Cycle through Q-Q plots")),
+                                               disabled(actionButton(inputId = "qqPrevious",
+                                                                     label = "Previous",
+                                                                     icon = icon("backward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;"),
+                                                        actionButton(inputId = "qqNext",
+                                                                     label = "Next",
+                                                                     icon = icon("forward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;")),
+                                               br(),
+                                               div(style = "text-align:center", "Colour input can be chosen or",
+                                                   br(), "searched by using the colour",
+                                                   br(), "name or hexadecimal code"),
+                                               colourInput(inputId = "qq_point_col",
+                                                           label = "point color", showColour = "both",
+                                                           palette = "limited",
+                                                           value = "#000000"),
+                                               br(),
+                                               radioButtons(inputId = "qqsave_choice",
+                                                            label = "What should be saved",
+                                                            choices = c("Displayed Q-Q plot" = "displayed",
+                                                                        "All Q-Q plots" = "all"),
+                                                            selected = "displayed"),
+                                               selectInput(inputId = "qqsave_filetype",
+                                                           label = "save plot as:",
+                                                           choices = c("JPEG" = "jpeg",
+                                                                       "PDF" = "pdf",
+                                                                       "TIFF" = "tiff",
+                                                                       "PNG" = "png"),
+                                                           selected = ".PDF"),
                                                downloadButton(outputId = "qqPlotDownload",
                                                               label = "Download",
                                                               style="display: block; margin: 0 auto; width: 200px;color: black;")),
@@ -191,14 +216,7 @@ ui <- dashboardPage(
                                      value = "quality_metrics",
                                      icon = icon("chart-line"),
                                      fluidPage(
-                                       fluidRow(
-                                         plotOutput("qqPlot"),
-                                         plotOutput("ScatterPlot")
-                                       ),
-                                       fluidRow(
-                                         plotOutput("correlloPlot"),
-                                         plotOutput("pcaPlot"))
-                                     )),
+                                         plotOutput("qqPlot"))),
                             #statistics tab
                             tabPanel(title = "Statistics",
                                      value = "statistics",
@@ -637,32 +655,73 @@ server <- function(input, output, session) {
   
   output$filt1_download <- downloadHandler(
     filename = function() {
-      paste("MyData1.txt", sep = ",")
+      paste("processedData.txt", sep = ",")
     },
     content = function(file) {
       write.csv(processed_data(), file)
     }
   )
-#################################################################################
-######### Quality Metrics ############################
-output$qqPlot <- renderPlot({
-  processed_data <- processed_data()
-  anno_data <- anno_data()
-  GeneNames <- processed_data$GeneNames
-  processed_data$GeneNames <- NULL
-  colnames(processed_data) <- anno_data$ID
-  normalDistro <- rnorm(n = nrow(processed_data))
-  for (i in 1:ncol(processed_data)) {
-    
-    ylabname <- colnames(processed_data[i])
-    print(ylabname)
-   p <- qqnorm(y = processed_data[[i]], ylab = ylabname)
-   return(p)
-  }
   
-})
   
 
+
+#################################################################################
+######### Quality Metrics ###########################
+  #ounting works dynamically, figure out plotting with index
+  qqCounter <- reactiveValues(counter = 1)
+  
+  observeEvent(input$qqRender, {
+    enable("qqPrevious")
+    enable("qqNext")
+  })
+  
+  observeEvent(input$qqPrevious, {
+    if (qqCounter$counter > 1) {
+      qqCounter$counter <- qqCounter$counter - 1
+    }
+  })
+  
+  observeEvent(input$qqNext, {
+    processed_data <- processed_data()
+    if (qqCounter$counter < ncol(processed_data) - 1) {
+      qqCounter$counter <- qqCounter$counter + 1
+    }
+  })
+  
+  qqplot_user <- reactive({
+    
+    if (is.null(input$user_file)) {
+      return(NULL)
+    }
+    processed_data <- processed_data()
+    anno_data <- anno_data()
+    colnames(processed_data) <- anno_data$ID
+    
+    index <- qqCounter$counter
+    ylabname <- colnames(processed_data[index])
+    plot_title <- paste("Q-Q plot of", ylabname, sep = " ")
+    plot.col <- input$qq_point_col
+    if (input$qqRender > 0) {
+      p <- qqnorm(processed_data[[index]],
+                  ylab = ylabname,
+                  main = plot_title,
+                  col = plot.col)
+    }
+    return(p)
+  })
+  output$qqPlot <- renderPlot({qqplot_user()})
+  
+  #downloading files not working
+  .x <- function(x) {output$qqPlotDownload <- downloadHandler(
+    filename = function() {"testplot.png"},
+    content = function(file) {
+      png(file = file)
+      qqplot_user()
+      dev.off()
+    }
+  )
+  }
+  
 } #server close
 
 shinyApp(ui, server)
