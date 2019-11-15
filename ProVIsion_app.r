@@ -2,7 +2,7 @@
 #shiny app for analysing mass spec data
 #creators James Gallant, Tiaan Heunis
 #Copyright 2019
-#To do: clean up datahandling tab with solid interactions
+#To do: #scatterplots load slow, next button is shit, now download options
 
 #Libraries we need
 require(shinydashboard)
@@ -152,14 +152,10 @@ ui <- dashboardPage(
                                                                      icon = icon("forward"),
                                                                      style="display:inline-block;width:40%;text-align: center;")),
                                                br(),
-                                               div(style = "text-align:center", "Colour input can be chosen or",
-                                                   br(), "searched by using the colour",
-                                                   br(), "name or hexadecimal code"),
                                                colourInput(inputId = "qq_point_col",
-                                                           label = "point color", showColour = "both",
+                                                           label = "plot point color", showColour = "both",
                                                            palette = "limited",
                                                            value = "#000000"),
-                                               br(),
                                                radioButtons(inputId = "qqsave_choice",
                                                             label = "What should be saved",
                                                             choices = c("Displayed Q-Q plot" = "displayed",
@@ -177,7 +173,26 @@ ui <- dashboardPage(
                                                               style="display: block; margin: 0 auto; width: 200px;color: black;")),
                                       #scatter plots
                                       menuItem("Scatter plots",
-                                               icon = icon("line-chart")),
+                                               icon = icon("line-chart"),
+                                               actionButton(inputId = "scatRender",
+                                                            label = "Generate plot(s)",
+                                                            icon = icon("play-circle"),
+                                                            style ="display: block; margin: 0 auto; width: 200px;color: black;"),
+                                               br(),
+                                               div(style = "text-align:center; color: white, ", 
+                                                   tags$b("Cycle through scatter plots")),
+                                               disabled(actionButton(inputId = "scatPrevious",
+                                                                     label = "Previous",
+                                                                     icon = icon("backward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;"),
+                                                        actionButton(inputId = "scatNext",
+                                                                     label = "Next",
+                                                                     icon = icon("forward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;")),
+                                               colourInput(inputId = "scat_point_col",
+                                                           label = "plot point color", showColour = "both",
+                                                           palette = "limited",
+                                                           value = "#000000")),
                                       menuItem("Correllelogram",
                                                icon = icon("line-chart")),
                                       #Principle componet analysis
@@ -216,7 +231,11 @@ ui <- dashboardPage(
                                      value = "quality_metrics",
                                      icon = icon("chart-line"),
                                      fluidPage(
-                                         plotOutput("qqPlot"))),
+                                       fluidRow(
+                                         column(6,
+                                                plotOutput("qqPlot")),
+                                         column(6,
+                                                plotOutput("scatPlot"))))),
                             #statistics tab
                             tabPanel(title = "Statistics",
                                      value = "statistics",
@@ -667,8 +686,9 @@ server <- function(input, output, session) {
 
 #################################################################################
 ######### Quality Metrics ###########################
-  #ounting works dynamically, figure out plotting with index
-  qqCounter <- reactiveValues(counter = 1)
+  Counter <- reactiveValues(qqcounter = 1,
+                            scatcounter = 1)
+  ###Q-Qplots###
   
   observeEvent(input$qqRender, {
     enable("qqPrevious")
@@ -676,15 +696,15 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$qqPrevious, {
-    if (qqCounter$counter > 1) {
-      qqCounter$counter <- qqCounter$counter - 1
+    if (Counter$qqcounter > 1) {
+      Counter$qqcounter <- Counter$qqcounter - 1
     }
   })
   
   observeEvent(input$qqNext, {
-    processed_data <- processed_data()
-    if (qqCounter$counter < ncol(processed_data) - 1) {
-      qqCounter$counter <- qqCounter$counter + 1
+    #processed_data <- processed_data()
+    if (Counter$qqcounter < ncol(processed_data()) - 1) {
+      Counter$qqcounter <- Counter$qqcounter + 1
     }
   })
   
@@ -697,7 +717,7 @@ server <- function(input, output, session) {
     anno_data <- anno_data()
     colnames(processed_data) <- anno_data$ID
     
-    index <- qqCounter$counter
+    index <- Counter$qqcounter
     ylabname <- colnames(processed_data[index])
     plot_title <- paste("Q-Q plot of", ylabname, sep = " ")
     plot.col <- input$qq_point_col
@@ -709,6 +729,7 @@ server <- function(input, output, session) {
     }
     return(p)
   })
+  
   output$qqPlot <- renderPlot({qqplot_user()})
   
   #downloading files not working
@@ -721,6 +742,62 @@ server <- function(input, output, session) {
     }
   )
   }
+  
+  ###scatterplots###
+  observeEvent(input$scatRender, {
+    enable("scatPrevious")
+    enable("scatNext")
+  })
+  
+  observeEvent(input$scatPrevious, {
+    if (Counter$scatcounter > 1) {
+      Counter$scatcounter <- Counter$scatcounter - 1
+    }
+  })
+  
+  #needs optimising for scatterplot 
+  observeEvent(input$scatNext, {
+      Counter$scatcounter <- Counter$scatcounter + 1
+  })
+  #needs optimising for scatterplot, only compare either reps or groups
+  #too many plots are generated
+  scatter_user <- reactive({
+    if (is.null(input$user_file)) {
+      return(NULL)
+    }
+    
+    processed_data <- processed_data()
+    anno_data <- anno_data()
+    colnames(processed_data) <- anno_data$ID
+    index <- Counter$scatcounter
+    plot_list <- list()
+    plot.col <- input$scat_point_col
+    for(i in unique(anno_data$annotation)){
+      COLS=anno_data$ID[anno_data$annotation ==i]
+      plot_combinations <- combn(COLS,
+                                 2,
+                                 simplify = FALSE)
+      
+      for (a in 1:length(plot_combinations)) {
+        p = ggplot(processed_data, 
+                   aes_string(x = plot_combinations[[a]][1], 
+                              y = plot_combinations[[a]][2])) +
+          geom_point(pch = 21, colour = "black", fill = plot.col) + 
+          theme_classic(base_size = 14)
+        out_name <- paste(i,a,sep = "_")
+        plot_list[[out_name]] = p
+      }
+    }
+    
+    if (input$scatRender == 0) {
+      return(NULL)
+    } else {
+      dispPlot <- plot_list[index]
+    }
+    return(dispPlot)
+  })
+  
+  output$scatPlot <- renderPlot({scatter_user()})  
   
 } #server close
 
