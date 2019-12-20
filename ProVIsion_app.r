@@ -6,6 +6,7 @@
 #Libraries we need
 require(shinydashboard)
 require(shiny)
+library(tidyr)
 require(ggplot2)
 require(dplyr)
 require(reshape2)
@@ -19,7 +20,10 @@ require(shinyWidgets)
 require(RColorBrewer)
 require(Hmisc)
 require(limma)
-
+require(ggrepel)
+require(pheatmap)
+require(shinyAce)
+require(mailR)
 
 #starting cod e for the app
 
@@ -44,6 +48,12 @@ ui <- dashboardPage(
                                       #Filtering comes here
                                       menuItem("Filter and Transform", tabName = "file_filter",
                                                icon = icon("filter"),
+                                               prettySwitch(
+                                                 inputId = "unlockCols",
+                                                 label = "Enable column editing", 
+                                                 status = "primary",
+                                                 slim = TRUE),
+                                               #disable(uiOutput("addRemCols")),
                                                #filtering buttons
                                                div(style = "text-align:center", "choose minimum unique peptides",
                                                    br(), "default of 2 is chosen automatically"),
@@ -77,7 +87,7 @@ ui <- dashboardPage(
                                                    br(), "rename your replicates with",
                                                    br(), "the same annotion.",
                                                    br(), "Example:"),
-                                               img(src = 'img1.tif', width = '100%'),
+                                               tags$img(src = 'img1.tif', width = '100%'),
                                                
                                                div(style = "text-align:center", "once done renaming press",
                                                    br(), "submit to lock in the annotation"),
@@ -110,27 +120,31 @@ ui <- dashboardPage(
                                       #imputation
                                       menuItem("Impute missing values",
                                                icon = icon("cogs"),
-                                               checkboxInput(inputId = "median_center",
-                                                             label = "Center the median",
-                                                             width = 200,
-                                                             value = TRUE),
+                                               br(),
+                                               div(style = "text-align:left", 
+                                                   tags$b("Control imputation metrics"), br(),
+                                                   "enable at own risk"),
+                                               switchInput(inputId = "EnableImputeControl",
+                                                           onLabel = "Yes", offLabel = "No",
+                                                           onStatus = "danger", offStatus = "primary",
+                                                           value = FALSE),
+                                               disabled(numericInput(inputId = "imputeWidth",
+                                                                     label = "Select width", 
+                                                                     value = 0.3),
+                                                        numericInput(inputId = "imputeDS",
+                                                                     label = "Select downshift", 
+                                                                     value = 1.8),
+                                                        checkboxInput(inputId = "median_center",
+                                                                      label = "Center the median",
+                                                                      width = 200,
+                                                                      value = FALSE)
+                                                        ),
                                                actionButton(inputId = "start_imputation",
                                                             label = "Start imputing",
                                                             width = 200,
                                                             icon = icon("play-circle"))),
                                       menuItem("Download tables",
                                                icon = icon("download"),
-                                               div(style = "text-align:center", "Download the tables generated",
-                                                   br(), "thus far. Final data frame will also",
-                                                   br(), "be availible in the export tab"),
-                                               br(),
-                                               div(style = "text-align:center", "Download original unprocessed data"),
-                                               downloadButton(outputId = "rawfile_download",
-                                                              label = "original data frame",
-                                                              style="display: block; margin: 0 auto; width: 200px;color: black;"),
-                                               br(),
-                                               div(style = "text-align:center", "Download data filtered", 
-                                                   br(), "for contaminants"),
                                                downloadButton(outputId = "filt1_download",
                                                               label = "Processed data",
                                                               style="display: block; margin: 0 auto; width: 200px;color: black;")))),
@@ -138,28 +152,104 @@ ui <- dashboardPage(
                    conditionalPanel(condition = "input.main_tabs == 'quality_metrics'",
                                     sidebarMenu(
                                       #QQ-plots
-                                      menuItem("Q-Q plots",
+                                      menuItem("Normality plots",
                                                icon = icon("line-chart"),
-                                               actionButton(inputId = "qqRender",
+                                               actionButton(inputId = "normRender",
                                                             label = "Generate plot(s)",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
                                                br(),
                                                div(style = "text-align:center; color: white, ", 
-                                                   tags$b("Cycle through Q-Q plots")),
-                                               disabled(actionButton(inputId = "qqPrevious",
+                                                   tags$b("Cycle through plots")),
+                                               disabled(actionButton(inputId = "normPrevious",
                                                                      label = "Previous",
                                                                      icon = icon("backward"),
                                                                      style="display:inline-block;width:40%;text-align: center;"),
-                                                        actionButton(inputId = "qqNext",
+                                                        actionButton(inputId = "normNext",
                                                                      label = "Next",
                                                                      icon = icon("forward"),
                                                                      style="display:inline-block;width:40%;text-align: center;")),
                                                br(),
-                                               colourInput(inputId = "qq_point_col",
-                                                           label = "plot point color", showColour = "both",
+                                               radioButtons(inputId = "normPlotChoice",
+                                                            label = "Choose plot type",
+                                                            choices = c("Q-Q plot" = "qqPlot", 
+                                                                        "Histogram" = "histogram"), 
+                                                            selected = "qqPlot", inline = TRUE),
+                                               colourInput(inputId = "normPlotCol",
+                                                           label = "Choose border colour",
+                                                           showColour = "both",
                                                            palette = "limited",
-                                                           value = "#000000")),
+                                                           value = "#000000"),
+                                               colourInput(inputId = "normPlotFill",
+                                                           label = "Choose fill colour",
+                                                           showColour = "both",
+                                                           palette = "limited",
+                                                           value = "#666666"),
+                                               menuItem(text = div(style = "text-align:left; color: white, ", 
+                                                                   tags$b("qqPlot aesthetics")),
+                                                        icon = icon("swatchbook"),
+                                                        textInput(inputId = "qqPlotTitle",
+                                                                  label = "Plot title",
+                                                                  value = "",
+                                                                  placeholder = "Q-Q plot of ..."),
+                                                        sliderInput(inputId = "qqPointSize",
+                                                                    label = "Change point size",
+                                                                    min = 1, max = 10, step = 1, 
+                                                                    value = 2),
+                                                        sliderInput(inputId = "qqPlotAlphaChannel", 
+                                                                    label = "Change transparency",
+                                                                    min = 0.1, max = 1, step = 0.1, 
+                                                                    value = 1)
+                                               ),
+                                               menuItem(text = div(style = "text-align:left; color: white, ", 
+                                                                   tags$b("Histogram aesthetics")),
+                                                        icon = icon("swatchbook"),
+                                                        textInput(inputId = "HistoTitle",
+                                                                  label = "Plot title",
+                                                                  value = "",
+                                                                  placeholder = "Histogram of ..."),
+                                                        sliderInput(inputId = "HistoBinWidth",
+                                                                    label = "Select bin width",
+                                                                    min = 1, max = 100, step = ,
+                                                                    value = 30),
+                                                        prettySwitch(
+                                                          inputId = "HistoPlotDensity",
+                                                          label = "Add density distribution", 
+                                                          status = "primary",
+                                                          slim = TRUE),
+                                                        colourInput(inputId = "normDensityFill",
+                                                                    label = "Density plot colour",
+                                                                    palette = "limited",
+                                                                    value = "#666666"),
+                                                        sliderInput(inputId = "DensPlotAlphaChannel", 
+                                                                    label = "Change transparency",
+                                                                    min = 0.1, max = 1, step = 0.1, 
+                                                                    value = 0.4)
+                                                        
+                                                        
+                                               ),
+                                               br(),
+                                               menuItem(text = "Downloads",
+                                                        icon = icon("download"),
+                                                        radioButtons(inputId = "normFigDownChoice",
+                                                                     label = "Download:",
+                                                                     choices = c("All", "Current"),
+                                                                     selected = "Current", inline = TRUE),
+                                                        selectInput(inputId = "normFigDownType",
+                                                                    label = "Filetype",
+                                                                    choices = c("tiff", "jpeg",
+                                                                                "png", "pdf"),
+                                                                    selected = "tiff"),
+                                                        selectInput(inputId = "normFigRes",
+                                                                    label = "Figure resolution",
+                                                                    choices = c("High" = "retina",
+                                                                                "Medium" = "print",
+                                                                                "low" = "screen"),
+                                                                    selected = "300"),
+                                                        downloadButton(outputId = "normFigDownload", 
+                                                                       label = "download", 
+                                                                       style="display: block; margin: 0 auto; width: 200px;color: black;"))
+                                               ),
                                       #scatter plots
                                       menuItem("Scatter plots",
                                                icon = icon("line-chart"),
@@ -178,10 +268,50 @@ ui <- dashboardPage(
                                                                      label = "Next",
                                                                      icon = icon("forward"),
                                                                      style="display:inline-block;width:40%;text-align: center;")),
+                                               textInput(inputId = "scatTitle", 
+                                                         label = "Label plot",
+                                                         value = "",
+                                                         placeholder = "My scatter plot"),
                                                colourInput(inputId = "scat_point_col",
                                                            label = "plot point color", showColour = "both",
                                                            palette = "limited",
-                                                           value = "#000000")),
+                                                           value = "#000000"),
+                                               sliderInput(inputId = "scatPlotAlphaChannel", 
+                                                           label = "Change transparency",
+                                                           min = 0.1, max = 1, step = 0.1, 
+                                                           value = 1),
+                                               sliderInput(inputId = "scatPointSize", 
+                                                           label = "Point size",
+                                                           min = 0.5, max = 5, step = 0.5, 
+                                                           value = 1),
+                                               radioButtons(inputId = "scatCharcters",
+                                                            label = "Select point type",
+                                                            choices = c("Circle" = 21,
+                                                                        "Square" = 22,
+                                                                        "Diamond"= 23,
+                                                                        "Triangle 1" = 24,
+                                                                        "Triangle2" = 25),
+                                                            selected = 21),
+                                               menuItem(text = "Downloads",
+                                                        icon = icon("download"),
+                                                        radioButtons(inputId = "scatFigDownChoice",
+                                                                     label = "Download:",
+                                                                     choices = c("All", "Current"),
+                                                                     selected = "Current", inline = TRUE),
+                                                        selectInput(inputId = "scatFigDownType",
+                                                                    label = "Filetype",
+                                                                    choices = c("tiff", "jpeg",
+                                                                                "png", "pdf"),
+                                                                    selected = "tiff"),
+                                                        selectInput(inputId = "scatFigRes",
+                                                                    label = "Figure resolution",
+                                                                    choices = c("High" = "retina",
+                                                                                "Medium" = "print",
+                                                                                "low" = "screen"),
+                                                                    selected = "print"),
+                                                        downloadButton(outputId = "scatFigDownload", 
+                                                                       label = "download", 
+                                                                       style="display: block; margin: 0 auto; width: 200px;color: black;"))),
                                       menuItem("Correllelogram",
                                                icon = icon("line-chart"),
                                                actionButton(inputId = "corrRender",
@@ -205,7 +335,23 @@ ui <- dashboardPage(
                                                              value = TRUE ),
                                                numericInput(inputId = "corrDecimalPos", 
                                                             label = "Number of decimal spaces", 
-                                                            value = 2, min = 1)),
+                                                            value = 2, min = 1),
+                                               menuItem(text = "Downloads",
+                                                        icon = icon("download"),
+                                                        selectInput(inputId = "corrFigDownType",
+                                                                    label = "Filetype",
+                                                                    choices = c("tiff", "jpeg",
+                                                                                "png", "pdf"),
+                                                                    selected = "tiff"),
+                                                        selectInput(inputId = "corrFigRes",
+                                                                    label = "Figure resolution",
+                                                                    choices = c("High" = "retina",
+                                                                                "Medium" = "print",
+                                                                                "low" = "screen"),
+                                                                    selected = "print"),
+                                                        downloadButton(outputId = "corrFigDownload", 
+                                                                       label = "download", 
+                                                                       style="display: block; margin: 0 auto; width: 200px;color: black;"))),
                                       #Principle componet analysis
                                       menuItem("PCA plots",
                                                icon = icon("line-chart"),
@@ -213,10 +359,9 @@ ui <- dashboardPage(
                                                             label = "Generate plot(s)",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
-                                              # br(),
                                                sliderInput(inputId = "pcaPlotPointSize", label = "change point size",
                                                            min = 1, max = 10, step = 1,
-                                                           value = 1),
+                                                           value = 4),
                                                menuItem(text = div(style = "text-align:left; color: white, ", 
                                                                    tags$b("Colour by group")),
                                                         icon = icon("swatchbook"),
@@ -225,7 +370,15 @@ ui <- dashboardPage(
                                                            min = 0.1, max = 1, step = 0.1, value = 1),
                                                radioButtons(inputId = "pcaLegendPostition", label = "Position legend",
                                                             choices = c("right", "left", "top", "bottom", "none"), 
-                                                            selected = "top"),
+                                                            selected = "top", inline = TRUE),
+                                              radioButtons(inputId = "pcaCharcters",
+                                                           label = "Select point type",
+                                                           choices = c("Circle" = 21,
+                                                                       "Square" = 22,
+                                                                       "Diamond"= 23,
+                                                                       "Triangle 1" = 24,
+                                                                       "Triangle2" = 25),
+                                                           selected = 21, inline = TRUE),
                                                textInput(inputId = "pcaPlotTitle", label = "Enter plot title")
                                                
                                                
@@ -293,17 +446,14 @@ ui <- dashboardPage(
                                                                      label = "Next",
                                                                      icon = icon("forward"),
                                                                      style="display:inline-block;width:40%;text-align: center;")),
-                                               sliderInput(inputId = "volclabelNoOfSig",
-                                                           label = "Label top signficantly regulated proteins",
-                                                           min = 0, max = 20, step = 1, value = 0),
-                                               sliderInput(inputId = "volcPlotPointSize", label = "change point size",
-                                                           min = 1, max = 10, step = 1,
-                                                           value = 3),
-                                               sliderInput(inputId = "volcAlphaChannel", label = "Change transparency",
-                                                           min = 0.1, max = 1, step = 0.1, value = 1),
                                                menuItem(text = div(style = "text-align:left; color: white, ", 
-                                                                   tags$b("Change point colours")),
+                                                                   tags$b("Alter point characteristics")),
                                                         icon = icon("swatchbook"),
+                                                        sliderInput(inputId = "volcPlotPointSize", label = "change point size",
+                                                                    min = 1, max = 10, step = 1,
+                                                                    value = 3),
+                                                        sliderInput(inputId = "volcAlphaChannel", label = "Change transparency",
+                                                                    min = 0.1, max = 1, step = 0.1, value = 1),
                                                         colourInput(inputId = "volcDown",
                                                                     label = "Downregulated", showColour = "both",
                                                                     palette = "limited",
@@ -317,23 +467,157 @@ ui <- dashboardPage(
                                                                     palette = "limited",
                                                                     value = "#000000")
                                                         ),
-                                               textInput(inputId = "volcTitle",
-                                                         label = "Enter plot title",
-                                                         value = ""),
-                                               radioButtons(
-                                                 inputId = "volcFeatures",
-                                                 label = "display:", 
-                                                 choices = c("Lines", "Counts", "Both", "None"),
-                                                 selected = "Both",
-                                                 inline = TRUE),
-                                               radioButtons(inputId = "volcLegendPostition", label = "Legend position",
-                                                            choices = c("right", "left", "top", "bottom", "none"), 
-                                                            selected = "top", inline = TRUE)
-                                               
-                                               
-                                               
-                                    ))
-                                    ) #figures close
+                                               menuItem(text = div(style = "text-align:left; color: white, ", 
+                                                                   tags$b("Label significant proteins")),
+                                                        icon = icon("tags"),
+                                                        radioButtons(inputId = "volcSigLabels", 
+                                                                     label = "Display labels", 
+                                                                     choices = c("None", "Upregulated", "Downregulated", "Both"), 
+                                                                     selected = "None"),
+                                                        sliderInput(inputId = "volclabelNoOfSig",
+                                                                    label = "Label top signficantly regulated proteins",
+                                                                    min = 1, max = 30, step = 1, value = 0)),
+                                               menuItem(text = div(style = "text-align:left; color: white, ", 
+                                                                   tags$b("Plot title control")),
+                                                        icon = icon("heading"),
+                                                        textInput(inputId = "volcTitle",
+                                                                  label = "Enter plot title",
+                                                                  value = ""),
+                                                        sliderInput(inputId = "volcTitlePos",
+                                                                    label = "Set title position",
+                                                                    min = 0, max = 1, step = 0.1,
+                                                                    value = 0),
+                                                        radioButtons(inputId = "VolcTitleFace",
+                                                                     label = "Title face",
+                                                                     choices = c("plain", "bold",
+                                                                                 "italic", "bold.italic"))),
+                                               menuItem(text = div(style = "text-align:left; color: white, ", 
+                                                                   tags$b("Alter plot characteristics")),
+                                                        icon = icon("gears"),
+                                                        radioButtons(inputId = "volcLegendPostition", label = "Legend position",
+                                                                     choices = c("right", "left", "top", "bottom", "none"), 
+                                                                     selected = "top"),
+                                                        radioButtons(inputId = "volcFeatures",
+                                                          label = "display:", 
+                                                          choices = c("Lines", "Counts", "Both", "None"),
+                                                          selected = "Both"))
+                                      ),
+                                      menuItem("Heatmaps",
+                                               actionButton(inputId = "generateHM",
+                                                            label = "Render Heatmap",
+                                                            icon = icon("play-circle"),
+                                                            style ="display: block; margin: 0 auto; width: 200px;color: black;"),
+                                               br(),
+                                               div(style = "text: align-left; color: white,", tags$b("Current comparison")),
+                                               verbatimTextOutput(outputId = "HMcurrentCompareText"),
+                                               br(),
+                                               disabled(actionButton(inputId = "HMCyclePrevious",
+                                                                     label = "Previous",
+                                                                     icon = icon("backward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;"),
+                                                        actionButton(inputId = "HMCycleNext",
+                                                                     label = "Next",
+                                                                     icon = icon("forward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;")),
+                                               menuItem(text = div(style = "text-align:left; color: white, ", 
+                                                                   tags$b("Alter plot characteristics")),
+                                                        icon = icon("tags"),
+                                                        radioButtons(inputId = "HMdata",
+                                                                     label = "Switch between data type",
+                                                                     choices = c("Plot averages" = "averages",
+                                                                                 "Plot replicates" = "reps"),
+                                                                     selected = "reps"),
+                                                        checkboxInput(inputId = "HMDispCol",
+                                                                      label = "Show column label",
+                                                                      value = TRUE),
+                                                        checkboxInput(inputId = "HMDispRow",
+                                                                      label = "Show row labels",
+                                                                      value = TRUE),
+                                                        radioButtons(inputId = "HMSigLabels", 
+                                                                     label = "Isolate significant proteins", 
+                                                                     choices = c("Upregulated", "Downregulated", "Both"), 
+                                                                     selected = "Upregulated"),
+                                                        checkboxInput(inputId = "HMzScore",
+                                                                      label = "Z-score data", value = FALSE),
+                                                        numericInput(inputId = "HMlabelNoOfSig",
+                                                                     label = "No. of regulated proteins to display",
+                                                                     min = 1, step = 1, value = 10)),
+                                               menuItem(text = div(style = "text-align:left; color: white, ", 
+                                                                   tags$b("Change colour scheme")),
+                                                        icon = icon("swatchbook"),
+                                                        radioButtons(inputId = "HMColChoice", 
+                                                                     label = "Choose correlation colour gradient",
+                                                                     choices = c("Red-Yellow-Blue" = "RdYlBu",
+                                                                                 "Red-Blue" = "RdBu",
+                                                                                 "Purple-Orange" = "PuOr",
+                                                                                 "Purple-Green" = "PRGn",
+                                                                                 "Purple-Yellow-Green" = "PiYG", 
+                                                                                 "Brown-Blue-Green" = "BrBG"),
+                                                                     selected = "RdYlBu"),
+                                                        sliderInput(inputId = "HMcolScale",
+                                                                    label = "Choose colour scale",
+                                                                    min = 1, max = 11, step = 1, value = 11),
+                                                        colourInput(inputId = "HMborderCol",
+                                                                    label = "Border colour", showColour = "both",
+                                                                    palette = "limited",
+                                                                    value = "#000000")),
+                                               menuItem(text = div(style = "text-align:left; color: white, ", 
+                                                                   tags$b("Correlation")),
+                                                        icon = icon("calculator"),
+                                                        checkboxInput(inputId = "HMclustCols",
+                                                                      label = "cluster columns", 
+                                                                      value = TRUE),
+                                                        checkboxInput(inputId = "HMclustRows",
+                                                                      label = "cluster rows", 
+                                                                      value = TRUE),
+                                                        pickerInput(inputId = "HMClustMethod",
+                                                                    label = "Clustering method", 
+                                                                    choices = c("complete", "ward.D", "ward.D2",
+                                                                                "single", "average", "median", 
+                                                                                "centroid"),
+                                                                    multiple = FALSE, 
+                                                                    selected = "complete",
+                                                                    choicesOpt = list(
+                                                                      style = rep(("color: black;"),7)))
+                                                        )
+                                               ),
+                                      menuItem(text = "Downloads",
+                                               icon = icon("download"),
+                                               radioButtons(inputId = "MainFigDownChoice",
+                                                            label = "Download:",
+                                                            choices = c("volcano", "heatmap"),
+                                                            selected = "volcano", inline = TRUE),
+                                               textInput(inputId = "mainFigDownTitle",
+                                                         label = "file name",
+                                                         placeholder = "Current comparison"),
+                                               selectInput(inputId = "mainFigDownType",
+                                                           label = "Filetype",
+                                                           choices = c("tiff", "jpeg",
+                                                                       "png", "pdf"),
+                                                           selected = "tiff"),
+                                               selectInput(inputId = "mainFigRes",
+                                                           label = "Figure resolution",
+                                                           choices = c("High" = "retina",
+                                                                       "Medium" = "print",
+                                                                       "low" = "screen"),
+                                                           selected = "print"),
+                                               downloadButton(outputId = "MainFigDownload", 
+                                                              label = "download", 
+                                                              style="display: block; margin: 0 auto; width: 200px;color: black;")))
+                                    ), #figures close
+                   #about us panel
+                   conditionalPanel(condition = "input.main_tabs == 'AboutUs'",
+                                    sidebarMenu(
+                                      menuItem(text = "Contact us",
+                                               icon = icon("envelope"),
+                                               textInput(inputId = "UserEmail", "From:", value="from@gmail.com"),
+                                               textInput("to", "To:", value="to@gmail.com"),
+                                               textInput(inputId = "Usersubject", "Subject:", value=""),
+                                               actionButton("send", "Send mail"))
+                                      
+                                    ) #sidebar close
+                     
+                   ) #about us close
   ), #sidebar close
   
   dashboardBody(useShinyjs(),
@@ -365,8 +649,56 @@ ui <- dashboardPage(
                                      fluidPage(
                                        fluidRow(
                                          column(6,
+                                                dropdownButton(circle = TRUE,
+                                                               status = "primary", 
+                                                               tooltip = TRUE,
+                                                               icon = icon("gears"),
+                                                               label = "Click for more plotting options",
+                                                               h4("Q-Q plot options"),
+                                                               colourInput(inputId = "qqLineCol",
+                                                                           label = "Line colour",
+                                                                           palette = "limited",
+                                                                           value = "#000000"),
+                                                               sliderInput(inputId = "qqLineWidth",
+                                                                           label = "Line width",
+                                                                           min = 0.1, max = 2, step = 0.1,
+                                                                           value = 1),
+                                                               radioButtons(inputId = "qqLinesType",
+                                                                            label = "Choose line type",
+                                                                            choices = c("solid", "dashed", 
+                                                                                        "dotted", "dotdash", 
+                                                                                        "longdash", "twodash"),
+                                                                            selected = "solid", inline = TRUE),
+                                                               h4("Q-Q and histogram options"),
+                                                               sliderInput(inputId = "normTitlePos",
+                                                                           label = "Set title position",
+                                                                           min = 0, max = 1, step = 0.1,
+                                                                           value = 0),
+                                                               radioButtons(inputId = "normTitleFace",
+                                                                            label = "Title face",
+                                                                            choices = c("plain", "bold",
+                                                                                        "italic", "bold.italic"),
+                                                                            selected = "plain")),
                                                 plotOutput("qqPlot")),
                                          column(6,
+                                                dropdownButton(circle = TRUE,
+                                                               status = "primary", 
+                                                               tooltip = TRUE,
+                                                               icon = icon("gears"),
+                                                               label = "Click for more plotting options",
+                                                               colourInput(inputId = "scatPointBorder",
+                                                                           label = "change point border colour",
+                                                                           palette = "limited",
+                                                                           value = "#000000"),
+                                                               sliderInput(inputId = "scatTitlePos",
+                                                                           label = "Set title position",
+                                                                           min = 0, max = 1, step = 0.1,
+                                                                           value = 0),
+                                                               radioButtons(inputId = "scatTitleFace",
+                                                                            label = "Title face",
+                                                                            choices = c("plain", "bold",
+                                                                                        "italic", "bold.italic"),
+                                                                            selected = "plain")),
                                                 plotOutput("scatPlot"))),
                                        br(),
                                        fluidRow(
@@ -393,49 +725,79 @@ ui <- dashboardPage(
                             tabPanel(title = "Figure construction",
                                      value = "figures",
                                      icon = icon("chart-area"),
-                                     dropdownButton(circle = TRUE,status = "primary", tooltip = TRUE,
-                                                    icon = icon("gears"),label = "Click for more plotting options",
-                                                    sliderInput(inputId = "volcTitlePos",
-                                                                label = "Set title position",
-                                                                min = 0, max = 1, step = 0.1,
-                                                                value = 0),
-                                                    radioButtons(inputId = "VolcTitleFace",
-                                                                 label = "Title face",
-                                                                 choices = c("plain", "bold",
-                                                                             "italic", "bold.italic")),
-                                                    sliderInput(inputId = "volcLinesLWD", 
-                                                                label = "Set line width",
-                                                                min = 0, max = 5, step = 0.1, value = 1.4),
-                                                    radioButtons(inputId = "volcLinesType",
-                                                                label = "Choose line type",
-                                                                choices = c("solid", "dashed", 
-                                                                            "dotted", "dotdash", 
-                                                                            "longdash", "twodash"),
-                                                                selected = "longdash", inline = TRUE),
-                                                    div(tags$b("Control position of significant counts:")),
-                                                    br(),
-                                                    fluidRow(column(4,
-                                                                    numericInput(inputId = "volcXdown",
-                                                                                 label = "Downregulated x position",
-                                                                                 value = -5)),
-                                                             column(4,
-                                                                    numericInput(inputId = "volcYdown",
-                                                                                 label = "Downregulated y position",
-                                                                                 value = 10))),
-                                                    fluidRow(column(4,
-                                                                    numericInput(inputId = "volcXup",
-                                                                                 label = "Upregulated x position",
-                                                                                 value = 5)),
-                                                             column(4,
-                                                                    numericInput(inputId = "volcYup",
-                                                                                 label = "Upregulated y position",
-                                                                                 value = 10)))
-                                                    ),
-                                     plotOutput("volcplotOut")),
-                            #export tab
-                            tabPanel(title = "Export",
-                                     value = "export",
-                                     icon = icon("file-export")))
+                                     fluidPage(
+                                       fluidRow(column(6,
+                                                       dropdownButton(circle = TRUE,status = "primary", tooltip = TRUE,
+                                                                      icon = icon("gears"),label = "Click for more plotting options",
+                                                                      sliderInput(inputId = "volcLinesLWD", 
+                                                                                  label = "Set line width",
+                                                                                  min = 0, max = 5, step = 0.1, value = 1.4),
+                                                                      radioButtons(inputId = "volcLinesType",
+                                                                                   label = "Choose line type",
+                                                                                   choices = c("solid", "dashed", 
+                                                                                               "dotted", "dotdash", 
+                                                                                               "longdash", "twodash"),
+                                                                                   selected = "longdash", inline = TRUE),
+                                                                      div(tags$b("Control position of significant counts:")),
+                                                                      br(),
+                                                                      fluidRow(column(4,
+                                                                                      numericInput(inputId = "volcXdown",
+                                                                                                   label = "Downregulated x position",
+                                                                                                   value = -5)),
+                                                                               column(4,
+                                                                                      numericInput(inputId = "volcYdown",
+                                                                                                   label = "Downregulated y position",
+                                                                                                   value = 10))),
+                                                                      fluidRow(column(4,
+                                                                                      numericInput(inputId = "volcXup",
+                                                                                                   label = "Upregulated x position",
+                                                                                                   value = 5)),
+                                                                               column(4,
+                                                                                      numericInput(inputId = "volcYup",
+                                                                                                   label = "Upregulated y position",
+                                                                                                   value = 10)))
+                                                       ),
+                                                       plotOutput("volcplotOut")
+                                                       ),
+                                                column(6,
+                                                       dropdownButton(circle = TRUE,status = "primary", tooltip = TRUE,
+                                                                      icon = icon("gears"),
+                                                                      label = "Click for more plotting options",
+                                                                      fluidRow(column(4,
+                                                                                      numericInput(inputId = "HMColFontSize",
+                                                                                                   label = "Column font size",
+                                                                                                   value = 12)),
+                                                                               column(4,
+                                                                                      numericInput(inputId = "HMRowFontSize",
+                                                                                                   label = "Row font size",
+                                                                                                   value = 12))),
+                                                                      radioButtons(inputId = "HMcolAngle",
+                                                                                   label = "Column text angle",
+                                                                                   choices = c(0, 45, 90, 270, 315),
+                                                                                   selected = 90, inline = TRUE),
+                                                                      sliderInput(inputId = "HMColTreeHeight",
+                                                                                  label = "Decrease column dendogram height",
+                                                                                  min = 0, max = 50, step = 2, value = 50),
+                                                                      sliderInput(inputId = "HMRowTreeHeight",
+                                                                                  label = "Decrease row dendogram height",
+                                                                                  min = 0, max = 50, step = 2, value = 50)),
+                                                       plotOutput("Heatmap")))
+                                     ) #fluidpage close
+                                     ),#Figs close
+                            #About us tab
+                            tabPanel(title = "About us",
+                                     value = "AboutUs",
+                                     icon = icon("user-tie"),
+                                     fluidPage(
+                                       fluidRow(
+                                         column(6,
+                                                aceEditor(
+                                                  outputId = "Usermessgae",
+                                                  value = "your message"
+                                                ))
+                                       )
+                                     )
+                                     ))
                 
   )#Body close
 ) #user interface close
@@ -453,6 +815,34 @@ server <- function(input, output, session) {
                      header = TRUE)
     return(data)
   })
+  
+  observe({
+    if (input$unlockCols == TRUE) {
+      enable("addRemCols")
+    } else {
+      disable("addRemCols")
+    }
+  })
+  #colPickData <- reactive({
+  #  if (!is.null(input$user_file)) {
+   #   df <- file_upload()
+  #    intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
+   #   return(intensity.names)
+  #  }
+  #})
+  
+  #output$addRemCols <- renderUI({
+   # if (!is.null(input$user_file)) {
+    #  pickerInput(inputId = "RemCols",
+     #             label = "Remove specific columns",
+      #            choices = unlist(colPickData()),
+       #           multiple = TRUE,
+        #          selected = unlist(colPickData()),
+         #         options = list(`actions-box` = TRUE, 
+          #                       `selected-text-format` = "count > 0"), choicesOpt = list(
+  #                                 style = rep(("color: black;"),length(colPickData()))))
+ #   }
+#  })
   
   #### Data handling ################################################################
   #functions
@@ -541,6 +931,21 @@ server <- function(input, output, session) {
     return(lst)
   }
   
+  #control imputations
+  observe({
+    if (input$EnableImputeControl == TRUE) {
+      enable("imputeWidth")
+      enable("imputeDS")
+      enable("median_center")
+    } else {
+      reset("imputeWidth")
+      reset("imputeDS")
+      reset("median_center")
+      disable("imputeWidth")
+      disable("imputeDS")
+      disable("median_center")
+    }
+  })
   processed_data <- reactive({
     if (input$activate_filter > 0) {
       raw <- file_upload()
@@ -568,14 +973,21 @@ server <- function(input, output, session) {
       } 
       
       #create new dataframe from LFQ intensities
-      df2 <- df[, grep(pattern ='^LFQ.intensity.*', names(df))]
+      df2 <-  df[intensity.names]
       
       #assign protein IDs from oringinal this will be majority prt IDs in the end
-      df2$Protein.IDs <- df$Majority.protein.IDs
+      df2$Protein.IDs <- df$Protein.IDs
       df2$Majority.protein.IDs <- df$Majority.protein.IDs
       
       #need to get everything before a ; character first
-      fasta <- word(df2$Majority.protein.IDs, 1, sep = ";")
+      #check for fasta col, if present use that
+      parseRule <- grepl(">", df$Fasta.headers)
+      if (TRUE %in% parseRule ) {
+        fasta <- word(df$Fasta.headers, 1, sep = ";")
+      } else {
+        fasta <- word(df2$Protein.IDs, 1, sep = ";")
+      }
+      
       df2$UniprotID <- str_extract(fasta,"(?<=\\|)(.+)(?=\\|)")
       temp1_genename <- str_extract(fasta,"(?<=\\|)(.+)(?=\\_)")
       df2$GeneNames <- sapply(strsplit(temp1_genename, "\\|"), "[", 2)
@@ -587,6 +999,7 @@ server <- function(input, output, session) {
       names(df2) = gsub(pattern = "LFQ.intensity.", replacement = "", x = names(df2))
       
       #rownames as IDs for later
+      #df2 <- df2[1:nrow(df2)-1,]
       rownames(df2) <- df2$UniprotID
       
       #remove redundant col
@@ -628,8 +1041,8 @@ server <- function(input, output, session) {
           colnames(df2) <- orig.col.names
           
           df2 <- imputeFunc(x = df2, 
-                            width = 0.3,
-                            downshift = 1.8,
+                            width = input$imputeWidth,
+                            downshift = input$imputeDS,
                             centerMedian = center_dat)
           anno_data <- anno_data()
           colnames(df2) <- anno_data$annotation
@@ -642,7 +1055,6 @@ server <- function(input, output, session) {
     }
     return(df2)
   })
-  
   ##### get df to display for user input ###
   #we will prompt for reps like this
   categorial_anno <- reactive({
@@ -869,15 +1281,6 @@ server <- function(input, output, session) {
   
   ##########data handling download##########
 
-  output$rawfile_download <- downloadHandler(
-    filename = function() {
-      paste("proteinGroups.txt", sep = "\t")
-    },
-    content = function(file) {
-      write.csv(file_upload(), file)
-    }
-  )
-  
   output$filt1_download <- downloadHandler(
     filename = function() {
       paste("processedData.txt", sep = ",")
@@ -886,57 +1289,106 @@ server <- function(input, output, session) {
       write.csv(processed_data(), file)
     }
   )
-  
-  
-
 
 #################################################################################
 ######### Quality Metrics ###########################
-  Counter <- reactiveValues(qqcounter = 1,
+  Counter <- reactiveValues(normcounter = 1,
                             scatcounter = 1)
   ###Q-Qplots###
   
-  observeEvent(input$qqRender, {
-    enable("qqPrevious")
-    enable("qqNext")
+  observeEvent(input$normRender, {
+    enable("normPrevious")
+    enable("normNext")
   })
   
-  observeEvent(input$qqPrevious, {
-    if (Counter$qqcounter > 1) {
-      Counter$qqcounter <- Counter$qqcounter - 1
+  observeEvent(input$normPrevious, {
+    if (Counter$normcounter > 1) {
+      Counter$normcounter <- Counter$normcounter - 1
     }
   })
   
-  observeEvent(input$qqNext, {
+  observeEvent(input$normNext, {
     #processed_data <- processed_data()
-    if (Counter$qqcounter < ncol(processed_data()) - 1) {
-      Counter$qqcounter <- Counter$qqcounter + 1
+    if (Counter$normcounter < ncol(processed_data()) - 1) {
+      Counter$normcounter <- Counter$normcounter + 1
     }
   })
   
-  qqplot_user <- reactive({
+  NormalityPlot <- reactive({
     
     if (is.null(input$user_file)) {
       return(NULL)
     }
     processed_data <- processed_data()
+    processed_data$GeneNames <- NULL
     anno_data <- anno_data()
     colnames(processed_data) <- anno_data$axisLabels
-    
-    index <- Counter$qqcounter
-    ylabname <- colnames(processed_data[index])
-    plot_title <- paste("Q-Q plot of", ylabname, sep = " ")
-    plot.col <- input$qq_point_col
-    if (input$qqRender > 0) {
-      p <- qqnorm(processed_data[[index]],
-                  ylab = ylabname,
-                  main = plot_title,
-                  col = plot.col)
+    ylabname <- colnames(processed_data[Counter$normcounter])
+    index <- Counter$normcounter
+    qqplotList <- list()
+    histPlotList <- list()
+    #init plot cylce on render to save computing time
+    if (input$normRender > 0) {
+      #run for selected plots only
+      if (input$normPlotChoice == "qqPlot") {
+        for (i in 1:ncol(processed_data)) {
+          dat <- data.frame(qqnorm(processed_data[,i], plot.it = FALSE))
+          axisname <- colnames(processed_data[i])
+          p <- ggplot(dat, aes(x, y)) + 
+            geom_point(pch = 21,
+                       alpha = input$qqPlotAlphaChannel,
+                       size = input$qqPointSize,
+                       colour = input$normPlotCol, 
+                       fill = input$normPlotFill) + 
+            geom_qq_line(aes(sample = y), 
+                         lty = input$qqLinesType, 
+                         lwd = input$qqLineWidth, 
+                         colour = input$qqLineCol) +
+            ylab(axisname) + 
+            xlab("Theoretical quantiles") +
+            ggtitle(input$qqPlotTitle) +
+            theme_classic(base_size = 14) +
+            theme(plot.title = element_text(hjust = input$normTitlePos, 
+                                            face = input$normTitleFace ))
+          
+          qqplotList[[i]] = p
+        }
+        
+        return(qqplotList)
+        
+      } else {
+        #histograms
+        for (i in 1:ncol(processed_data)) {
+          axisName <- colnames(processed_data[i])
+          
+          p <- ggplot(processed_data, aes_string(processed_data[,i])) + 
+            geom_histogram(aes(y = ..density..),
+                           bins = input$HistoBinWidth, fill = input$normPlotFill,
+                           colour = input$normPlotCol) +
+            xlab(axisName) + 
+            ggtitle(input$HistoTitle) +
+            theme_classic() +
+            theme(plot.title = element_text(hjust = input$normTitlePos, 
+                                            face = input$normTitleFace ))
+          
+          if (input$HistoPlotDensity == TRUE) {
+            p <- p + geom_density(fill = input$normDensityFill,
+                                  alpha = input$DensPlotAlphaChannel)
+          }
+         
+          
+          histPlotList[[i]] = p
+        }
+        
+        return(histPlotList)
+      }
+
+    } else {
+      return(NULL)
     }
-    return(p)
   })
   
-  output$qqPlot <- renderPlot({qqplot_user()})
+  output$qqPlot <- renderPlot({NormalityPlot()[Counter$normcounter]})
   
   ###scatterplots###
   scatter_user <- reactive({
@@ -960,8 +1412,15 @@ server <- function(input, output, session) {
         p = ggplot(processed_data, 
                    aes_string(x = plot_combinations[[a]][1], 
                               y = plot_combinations[[a]][2])) +
-          geom_point(pch = 21, colour = "black", fill = plot.col) + 
-          theme_classic(base_size = 14)
+          geom_point(pch = as.integer(input$scatCharcters), 
+                     colour = input$scatPointBorder, 
+                     size = input$scatPointSize,
+                     fill = plot.col,
+                     alpha = input$scatPlotAlphaChannel) + 
+          ggtitle(input$scatTitle) +
+          theme_classic(base_size = 14) +
+          theme(plot.title = element_text(hjust = input$scatTitlePos,
+                                          face = input$scatTitleFace))
         out_name <- paste(i,a,sep = "_")
         plot_list[[out_name]] = p
       }
@@ -1050,7 +1509,9 @@ server <- function(input, output, session) {
     })
   
   #pca plots
+  #Display groups system
   #render colour picking ui
+  
   pcaCols <- reactive({
     anno_data <- anno_data()
     if (input$pcaRender > 0) {
@@ -1078,9 +1539,9 @@ server <- function(input, output, session) {
   pca <- reactive({
     if (input$pcaRender > 0) {
       dat <- processed_data()
-      dat$GeneNames <- NULL
       anno_data <- anno_data()
-      idnames <- anno_data$axisLabels
+      idnames <- anno_data$ID
+      dat$GeneNames <- NULL
       colnames(dat) <- as.character(idnames)
       pcaData <- prcomp(x = t(dat), scale. = TRUE)
       pcaData <- as.data.frame(pcaData$x)
@@ -1101,7 +1562,7 @@ server <- function(input, output, session) {
     }
     if (input$pcaRender > 0) {
       p <- ggplot(pcaData, aes(pcaData$PC1, pcaData$PC2)) +
-        geom_point(pch = 21, 
+        geom_point(pch = as.integer(input$pcaCharcters), 
                    size = input$pcaPlotPointSize, 
                    colour = "black", 
                    alpha = input$pcaAlphaChannel,
@@ -1191,7 +1652,9 @@ server <- function(input, output, session) {
   #Limma stats
   statsTestedData <- reactive({
     processed_data <- processed_data()
-    GeneNames <- processed_data$GeneNames
+    rownames(processed_data) <- paste(rownames(processed_data), 
+                                      processed_data$GeneNames,
+                                      sep = "_")
     processed_data$GeneNames <- NULL
     anno_data <- anno_data()
     colnames(processed_data) <- anno_data$ID
@@ -1220,6 +1683,7 @@ server <- function(input, output, session) {
   statsOut <- reactive({
     fit2 <- statsTestedData()
     statComb <- statComb()
+    
     d.out <- data.frame(ID = names(fit2$coefficients[,statsCycler$counter]),
                         pValue = fit2$p.value[,statsCycler$counter],
                         qValue = p.adjust(fit2$p.value[,statsCycler$counter], input$pvalAdjust),
@@ -1229,12 +1693,18 @@ server <- function(input, output, session) {
                     significant = ifelse(test = round(d.out$qValue, 3) < input$UserSigCutoff & d.out$EffectSize > input$UserFCCutoff,
                                          yes = "Upregulated",
                                          ifelse(test =  round(d.out$qValue, 3) < input$UserSigCutoff & d.out$EffectSize < (input$UserFCCutoff * -1),
-                                                yes = "Downregulated", no = "Non signifcant")))
-
-    return(d.out)
+                                                yes = "Downregulated", no = "Non significant")))
+    
+    d2 <- data.frame(d.out,
+                     colsplit(string = d.out$ID, 
+                              pattern = "_", 
+                              names = c("UniprotID", "GeneName")))
+    rownames(d2) <- d2$UniprotID
+    d2$ID <- NULL
+    d2$UniprotID <- NULL
+    
+    return(d2)
   })
-  
- 
   
   output$downReg <- renderValueBox({
     if (input$calculateStats > 0) {
@@ -1248,6 +1718,7 @@ server <- function(input, output, session) {
                color = "aqua")
     }
   })
+  
   output$upReg <- renderValueBox({
     if (input$calculateStats > 0) {
       d <- statsOut()
@@ -1325,6 +1796,7 @@ server <- function(input, output, session) {
   volcPlotData <- reactive({
     fit2 <- statsTestedData()
     statComb <- statComb()
+    
     d.out <- data.frame(ID = names(fit2$coefficients[,volcCycler$counter]),
                         pValue = fit2$p.value[,volcCycler$counter],
                         qValue = p.adjust(fit2$p.value[,volcCycler$counter], input$pvalAdjust),
@@ -1334,14 +1806,64 @@ server <- function(input, output, session) {
                     sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
                               ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
     
-    return(d.out)
+    
+    d2 <- data.frame(d.out,
+                     colsplit(string = d.out$ID, 
+                              pattern = "_", 
+                              names = c("UniprotID", "GeneName")))
+    
+    if (input$volclabelNoOfSig > 0) {
+      
+      if (input$volcSigLabels == "Upregulated") {
+        d.up = d2 %>% 
+          filter(sig == "Upregulated") %>%
+          arrange(desc(EffectSize)) %>%
+          slice(1:input$volclabelNoOfSig) %>%
+          select(UniprotID, GeneName)
+        
+        d2 <- merge(d2, d.up, by = "UniprotID", all.x  = TRUE)
+      } else if (input$volcSigLabels == "Downregulated") {
+        d.down = d2 %>% 
+          filter(sig == "Downregulated") %>%
+          arrange(EffectSize) %>%
+          slice(1:input$volclabelNoOfSig) %>%
+          select(UniprotID, GeneName)
+        
+        d2 <- merge(d2, d.down, by = "UniprotID", all.x  = TRUE)
+        
+      } else if (input$volcSigLabels == "Both") {
+        d.up = d2 %>% 
+          filter(sig == "Upregulated") %>%
+          arrange(desc(EffectSize)) %>%
+          slice(1:input$volclabelNoOfSig) %>%
+          select(UniprotID, GeneName) 
+        
+        colnames(d.up)[colnames(d.up)=="GeneName"] <- "GeneNameup"
+        
+        d.down = d2 %>% 
+          filter(sig == "Downregulated") %>%
+          arrange(EffectSize) %>%
+          slice(1:input$volclabelNoOfSig) %>%
+          select(UniprotID, GeneName) 
+        
+        colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
+        
+        df.down <- merge(d2, d.down, by = "UniprotID", all.x = TRUE)
+        df.down$GeneName <- NULL
+        d2 <- merge(df.down, d.up, by = "UniprotID", all.x = TRUE)
+      }
+    }
+    
+    rownames(d2) <- d2$UniprotID
+    d2$ID <- NULL
+    d2$UniprotID <- NULL
+    return(d2)
   })
-  
-  
   
   volcPlot <- reactive({
     if (input$generateVolcs > 0) {
       d <- volcPlotData()
+      #volcSigLabel <- volcSigLabel()
       d.down = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize < (input$UserFCCutoff * -1) )
       d.up = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize > input$UserFCCutoff )
       p <- ggplot(d, aes(x=EffectSize, y=-log10(pValue), fill = sig)) +
@@ -1355,6 +1877,17 @@ server <- function(input, output, session) {
         theme(legend.position = input$volcLegendPostition,
               plot.title = element_text(face  = input$VolcTitleFace,
                                         hjust = input$volcTitlePos))
+      
+      if (input$volcSigLabels == "Upregulated" || input$volcSigLabels == "Downregulated") {
+        p <- p + geom_text_repel(aes(label = d$GeneName.y), show.legend = FALSE)
+      }
+      
+      if (input$volcSigLabels == "Both") {
+        p <- p + geom_text_repel(aes(label = d$GeneNamedown), show.legend = FALSE) +
+          geom_text_repel(aes(label = d$GeneNameup), show.legend = FALSE)
+      }
+      
+      
       
       if (input$volcFeatures == "Lines") {
         p <- p +  geom_vline(aes(xintercept = (input$UserFCCutoff*-1)),
@@ -1390,6 +1923,7 @@ server <- function(input, output, session) {
       if (input$volcFeatures == "None") {
         p <- p
       }
+      
       return(p)
      
     } else {
@@ -1399,7 +1933,368 @@ server <- function(input, output, session) {
   })
 
   output$volcplotOut <-renderPlot(volcPlot())
+  
+  ###heatmaps###
+  HMCycler <- reactiveValues(counter = 1)
+  
+  observeEvent(input$generateHM, {
+    enable("HMCyclePrevious")
+    enable("HMCycleNext")
+    output$HMcurrentCompareText <- renderText(input$hypoTestMat[HMCycler$counter])
+  })
+  
+  observeEvent(input$HMCyclePrevious, {
+    if (HMCycler$counter > 1) {
+      HMCycler$counter <- HMCycler$counter - 1
+    }
+  })
+  
+  observeEvent(input$HMCycleNext, {
+    if (HMCycler$counter < length(input$hypoTestMat)) {
+      HMCycler$counter <- HMCycler$counter + 1
+    } else if (HMCycler$counter == length(input$hypoTestMat)) {
+      HMCycler$counter <- 1
+    }
+  })
+  
+  heatmapData <- reactive({
+    fit2 <- statsTestedData()
+    processed_data <- processed_data()
+    anno_data <- anno_data()
+    processed_data$GeneName <- NULL
+    colnames(processed_data) <- anno_data$ID
+    processed_data$UniprotID <- rownames(processed_data)
+    
+    statComb <- statComb()
+    
+    d.out <- data.frame(ID = names(fit2$coefficients[,HMCycler$counter]),
+                        pValue = fit2$p.value[,HMCycler$counter],
+                        qValue = p.adjust(fit2$p.value[,HMCycler$counter], input$pvalAdjust),
+                        EffectSize = fit2$coefficients[,HMCycler$counter],
+                        comparison = statComb[HMCycler$counter])
+    
+    d.out <- mutate(d.out, 
+                    sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
+                                 ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
+    
+    
+    d2 <- data.frame(d.out,
+                     colsplit(string = d.out$ID, 
+                              pattern = "_", 
+                              names = c("UniprotID", "GeneName")))
+    
+    if (input$HMSigLabels == "Upregulated") {
+      d.up = d2 %>% 
+        filter(sig == "Upregulated") %>%
+        arrange(desc(EffectSize)) %>%
+        slice(1:input$HMlabelNoOfSig) %>%
+        select(UniprotID, GeneName)
+      colnames(d.up)[colnames(d.up)=="GeneName"] <- "GeneNameup"
+      
+      d2 <- merge(d2, d.up, by = "UniprotID", all.x  = TRUE)
+      d2$GeneName <- NULL
+      d3 <- merge(processed_data, d2[, c("UniprotID", "GeneNameup")], by = "UniprotID", 
+                  all.x = TRUE)
+      d3 = d3 %>% 
+        drop_na(GeneNameup)
+      
+      rownames(d3) <- d3$GeneNameup
+      d3$GeneNameup <- NULL
+      d3$UniprotID <- NULL
+      d3 <- d3[,1:nrow(anno_data)]
+      
+    } else if (input$HMSigLabels == "Downregulated") {
+      d.down = d2 %>% 
+        filter(sig == "Downregulated") %>%
+        arrange(EffectSize) %>%
+        slice(1:input$HMlabelNoOfSig) %>%
+        select(UniprotID, GeneName)
+      
+      colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
+        
+        d2 <- merge(d2, d.down, by = "UniprotID", all.x  = TRUE)
+        d2$GeneName <- NULL
+        d3 <- merge(processed_data, d2[, c("UniprotID", "GeneNamedown")], 
+                    by = "UniprotID", 
+                    all.x = TRUE)
+        d3 = d3 %>% 
+          drop_na(GeneNamedown)
+        
+        rownames(d3) <- d3$GeneNamedown
+        d3$GeneNameup <- NULL
+        d3$UniprotID <- NULL
+        d3 <- d3[,1:nrow(anno_data)]
+        
+    } else if (input$HMSigLabels == "Both") {
+      d.up = d2 %>% 
+        filter(sig == "Upregulated") %>%
+        arrange(desc(EffectSize)) %>%
+        slice(1:input$HMlabelNoOfSig) %>%
+        select(UniprotID, GeneName) 
+      
+      colnames(d.up)[colnames(d.up)=="GeneName"] <- "GeneNameup"
+      
+      d.down = d2 %>% 
+        filter(sig == "Downregulated") %>%
+        arrange(EffectSize) %>%
+        slice(1:input$HMlabelNoOfSig) %>%
+        select(UniprotID, GeneName) 
+      
+      colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
+      
+      df.down <- merge(d2, d.down, by = "UniprotID", all.x = TRUE)
+      df.down$GeneName <- NULL
+      
+      d2 <- merge(df.down, d.up, by = "UniprotID", all.x = TRUE)
+      
+      d2$GeneName <- coalesce(d2$GeneNameup, d2$GeneNamedown)
+      
+      d3 <- merge(processed_data, d2, by = "UniprotID",
+                  all.x = TRUE)
+      d3 = d3 %>%
+        drop_na(GeneName)
+      
+      rownames(d3) <- d3$GeneName
+      
+      d3$UniprotID <- NULL
+      
+      d3 <- d3[,1:nrow(anno_data)]
+      
+    }
+    
+    if (input$HMzScore == TRUE) {
+      d4 <- scale(d3, scale = TRUE)
+    } else {
+      d4 <- d3
+    }
+    return(d4)
+    
+  })
+  
+  UserHeatmap <- reactive({
+    if (input$generateHM > 0) {
+      d1 <- heatmapData()
+      
+      if (input$HMdata == "averages") {
+        anno_data <- anno_data()
+        colnames(d1) <- anno_data$annotation
+        d2 <- sapply(split.default(d1, names(d1)), rowSums, na.rm = TRUE)
+      } else {
+        d2 <- d1
+      }
+
+      p <- pheatmap(d2, color = brewer.pal(input$HMColChoice, 
+                                           n = input$HMcolScale),
+                    border_color = input$HMborderCol,
+                    fontsize_col = input$HMColFontSize,
+                    fontsize_row = input$HMRowFontSize,
+                    angle_col = input$HMcolAngle,
+                    cluster_cols = input$HMclustCols,
+                    cluster_rows = input$HMclustRows,
+                    clustering_method = input$HMClustMethod,
+                    show_colnames = input$HMDispCol,
+                    show_rownames = input$HMDispRow, 
+                    treeheight_col = input$HMColTreeHeight,
+                    treeheight_row = input$HMColTreeHeight)
+      return(p)
+    }
+    
+  })
+  
+  output$Heatmap <- renderPlot(UserHeatmap())
+  
+  #plot download handlers
+ normFileName <- reactive({
+    if (input$normFigDownChoice == "Current") {
+      p <- NormalityPlot()[Counter$normcounter]
+      axisTitleList <- as.character(unlist(p[[1]][["labels"]]))
+      axisTitle <- paste(axisTitleList[2])
+      
+      if (input$normPlotChoice == "qqPlot") {
+        name <- paste("qqPlot-", 
+                      axisTitle, ".", 
+                      input$normFigDownType,
+                      sep = "")
+      } else {
+        name <- paste("Histogram-", 
+                      axisTitleList[2], ".", 
+                      input$normFigDownType,
+                      sep = "")
+      }
+     
+    } else {
+      if (input$normPlotChoice == "qqPlot") {
+        name <- "qqplots.zip"
+      } else {
+        name <- "Histograms.zip"
+      }
+      
+    }
+    return(name)
+  })
+  
+  output$normFigDownload <- downloadHandler(
+    filename = function() { normFileName() },
+    content = function(file) {
+      if (input$normFigDownChoice == "Current") {
+        ggsave(file,
+               plot = NormalityPlot()[[Counter$normcounter]],
+               device = isolate(input$normFigDownType),
+               dpi = isolate(input$normFigRes)
+        )
+      } else {
+        files <- NULL;
+        for (i in 1:length(NormalityPlot())) {
+          p <- NormalityPlot()[[i]]
+          axisTitleList <- as.character(unlist(p[["labels"]]))
+          
+          if (input$normPlotChoice == "qqPlot") {
+            FileName <- paste("qqPlot-", axisTitleList[2], ".", 
+                              input$normFigDownType,
+                              sep = "")
+          } else{
+            FileName <- paste("Histogram-", axisTitleList[2], ".", 
+                              input$normFigDownType,
+                              sep = "")
+          }
+          
+          ggsave(filename = FileName,
+                 plot = NormalityPlot()[[i]],
+                 device = isolate(input$normFigDownType),
+                 dpi = isolate(input$normFigRes)
+          )
+          #files
+          files <- c(FileName, files)
+        }
+        zip(file, files)
+      }
+    }
+  )
  
+  #scatterplots
+  scatFileName <- reactive({
+    if (input$scatFigDownChoice == "Current") {
+      p <- scatter_user()[[Counter$scatcounter]]
+      axisTitleList <- as.character(unlist(p[["labels"]]))
+      axisTitle <- paste(axisTitleList[1], axisTitleList[2], sep = "-")
+      name <- paste("Scatter-", axisTitle, ".", input$scatFigDownType,
+                    sep = "")
+    } else {
+      name <- "Scatterplots.zip"
+    }
+    return(name)
+  })
+  
+  output$scatFigDownload <- downloadHandler(
+    filename = function() { scatFileName() },
+    content = function(file) {
+      if (input$scatFigDownChoice == "Current") {
+        ggsave(file,
+               plot = scatter_user()[[Counter$scatcounter]],
+               device = isolate(input$scatFigDownType),
+               dpi = isolate(input$scatFigRes)
+               )
+      } else {
+        files <- NULL;
+        for (i in 1:length(scatter_user())) {
+          p <- scatter_user()[[i]]
+          axisTitleList <- as.character(unlist(p[["labels"]]))
+          axisTitle <- paste(axisTitleList[1], axisTitleList[2], sep = "-")
+          FileName <- paste("Scatter-", axisTitle, ".", input$scatFigDownType,
+                        sep = "")
+          
+          ggsave(filename = FileName,
+                   plot = scatter_user()[[i]],
+                 device = isolate(input$scatFigDownType),
+                 dpi = isolate(input$scatFigRes)
+          )
+          #files
+          files <- c(FileName, files)
+        }
+        zip(file, files)
+      }
+    }
+  )
+  
+  #correlation plots
+  corrFileName <- reactive({
+    name <- paste("Correlogram", ".", input$corrFigDownType,
+                  sep = "")
+
+    return(name)
+  })
+  
+  output$corrFigDownload <- downloadHandler(
+    #getting input is not working for filename
+    filename = function() {corrFileName() },
+    content = function(file) {
+      ggsave(file,
+             plot = correllelogram(),
+             device = isolate(input$corrFigDownType),
+             dpi = isolate(input$corrFigRes))
+    }
+  )
+  #main figures
+  mainplotOut <- reactive({
+    if (input$MainFigDownChoice == "heatmap") {
+      p <- UserHeatmap()
+    } else {
+      p <- volcPlot()
+    }
+    return(p)
+  })
+  
+  mainFileName <- reactive({
+    if (input$MainFigDownChoice == "heatmap") {
+      if (input$mainFigDownTitle == "") {
+        print(input$mainFigDownTitle)
+        n <- paste("Heatmap-", input$hypoTestMat[HMCycler$counter], ".", input$mainFigDownType,
+                   sep = "")
+      } else {
+        
+        n <- paste("Heatmap-", input$mainFigDownTitle, ".", input$mainFigDownType,
+                   sep = "")
+      }
+    } else {
+      if (input$mainFigDownTitle == "") {
+        
+        n <- paste("Volcano-", input$hypoTestMat[volcCycler$counter], ".", input$mainFigDownType,
+                   sep = "")
+      } else {
+        
+        n <- paste("Volcano-", input$mainFigDownTitle, ".", input$mainFigDownType,
+                   sep = "")
+      }
+      
+    }
+    return(n)
+  })
+  
+  output$MainFigDownload <- downloadHandler(
+    #getting input is not working for filename
+    filename = function() { mainFileName() },
+    content = function(file) {
+      ggsave(file,
+             plot = mainplotOut(),
+             device = isolate(input$mainFigDownType),
+             dpi = isolate(input$mainFigRes))
+    }
+  )
+  
+  ###about us tab ###
+  #emails
+  observeEvent(input$send, {
+    send.mail(from = "jamesgallant17@gmail.com",
+              to = "skateanddestroy41@gmail.com",
+              subject = "Subject of the email",
+              body = "Body of the email",
+              smtp = list(host.name = "smtp.gmail.com", port = 465, 
+                          user.name = "jamesgallant17@gmail.com",            
+                          passwd = "Funkified", ssl = TRUE),
+              authenticate = TRUE,
+              send = TRUE)
+  })
+  
 } #server close
 
 shinyApp(ui, server)
