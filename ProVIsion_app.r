@@ -2,7 +2,7 @@
 #shiny app for analysing mass spec data
 #creators James Gallant, Tiaan Heunis
 #Copyright 2019
-#To do: downloads Bind plot buttonsF
+#To do: Better system for column edititng
 #Libraries we need
 require(shinydashboard)
 require(shiny)
@@ -24,7 +24,7 @@ require(ggrepel)
 require(pheatmap)
 require(shinyAce)
 require(mailR)
-
+require(xlsx)
 #starting cod e for the app
 
 #user interface starts here
@@ -32,6 +32,7 @@ ui <- dashboardPage(
   skin = "blue",
   dashboardHeader(title = "ProVision"),
   dashboardSidebar(useShinyjs(),
+                   useSweetAlert(),
                    #data handling sidebar menu
                    conditionalPanel(condition = "input.main_tabs == 'data_handling'",
                                     sidebarMenu(
@@ -53,7 +54,7 @@ ui <- dashboardPage(
                                                  label = "Enable column editing", 
                                                  status = "primary",
                                                  slim = TRUE),
-                                               #disable(uiOutput("addRemCols")),
+                                               uiOutput("addRemCols"),
                                                #filtering buttons
                                                div(style = "text-align:center", "choose minimum unique peptides",
                                                    br(), "default of 2 is chosen automatically"),
@@ -88,17 +89,11 @@ ui <- dashboardPage(
                                                    br(), "the same annotion.",
                                                    br(), "Example:"),
                                                tags$img(src = 'img1.tif', width = '100%'),
-                                               
                                                div(style = "text-align:center", "once done renaming press",
                                                    br(), "submit to lock in the annotation"),
                                                actionButton(inputId = "submit_anno",
                                                             label = "Submit",
                                                             icon = icon("running"),
-                                                            width = 200),
-                                               div(style = "text-align:center", "Enable submit button"),
-                                               actionButton(inputId = "anno_enable",
-                                                            label = "Redo",
-                                                            icon = icon("backward"),
                                                             width = 200)),
                                       menuItem("Filter valid values",
                                                icon = icon("filter"),
@@ -145,8 +140,17 @@ ui <- dashboardPage(
                                                             icon = icon("play-circle"))),
                                       menuItem("Download tables",
                                                icon = icon("download"),
+                                               textInput(inputId = "ProcDataDownName",
+                                                         label = "File name",
+                                                         placeholder = "My awesome data"),
+                                               radioButtons(inputId = "ProcDataDownType",
+                                                            label = "File type",
+                                                            choices = c("Excel" = "xlsx",
+                                                                       "Text" = "txt"),
+                                                            selected = "xlsx"),
+                                               uiOutput("ProcDataSelectorUI"),
                                                downloadButton(outputId = "filt1_download",
-                                                              label = "Processed data",
+                                                              label = "Download",
                                                               style="display: block; margin: 0 auto; width: 200px;color: black;")))),
                    #qualityMetrics sidebar
                    conditionalPanel(condition = "input.main_tabs == 'quality_metrics'",
@@ -318,6 +322,10 @@ ui <- dashboardPage(
                                                             label = "Generate plot(s)",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
+                                               textInput(inputId = "corrPlotTitle", label = "Enter plot title"),
+                                               checkboxInput(inputId = "corrValDisp", 
+                                                             label = "Show correlation value",
+                                                             value = TRUE ),
                                                radioButtons(inputId = "corrColChoice", 
                                                             label = "Choose correlation colour gradient",
                                                             choices = c("Red-Yellow-Blue" = "RdYlBu",
@@ -330,12 +338,6 @@ ui <- dashboardPage(
                                                sliderInput(inputId = "corrSlider", 
                                                            label = "Set lower correlation limit",
                                                            min = 0, max = 1, step = 0.05, value = 0),
-                                               checkboxInput(inputId = "corrValDisp", 
-                                                             label = "Show correlation value",
-                                                             value = TRUE ),
-                                               numericInput(inputId = "corrDecimalPos", 
-                                                            label = "Number of decimal spaces", 
-                                                            value = 2, min = 1),
                                                menuItem(text = "Downloads",
                                                         icon = icon("download"),
                                                         selectInput(inputId = "corrFigDownType",
@@ -359,6 +361,10 @@ ui <- dashboardPage(
                                                             label = "Generate plot(s)",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
+                                               textInput(inputId = "pcaPlotTitle", label = "Enter plot title"),
+                                               checkboxInput(inputId = "pcaZscore",
+                                                             label = "Z-score data", 
+                                                             value = TRUE),
                                                sliderInput(inputId = "pcaPlotPointSize", label = "change point size",
                                                            min = 1, max = 10, step = 1,
                                                            value = 4),
@@ -368,62 +374,83 @@ ui <- dashboardPage(
                                                         uiOutput("pcaColChoice")),
                                                sliderInput(inputId = "pcaAlphaChannel", label = "Change transparency",
                                                            min = 0.1, max = 1, step = 0.1, value = 1),
-                                               radioButtons(inputId = "pcaLegendPostition", label = "Position legend",
-                                                            choices = c("right", "left", "top", "bottom", "none"), 
-                                                            selected = "top", inline = TRUE),
-                                              radioButtons(inputId = "pcaCharcters",
-                                                           label = "Select point type",
-                                                           choices = c("Circle" = 21,
-                                                                       "Square" = 22,
-                                                                       "Diamond"= 23,
-                                                                       "Triangle 1" = 24,
-                                                                       "Triangle2" = 25),
-                                                           selected = 21, inline = TRUE),
-                                               textInput(inputId = "pcaPlotTitle", label = "Enter plot title")
-                                               
-                                               
-                                               )#PCA close
+                                              menuItem(text = "Downloads",
+                                                       icon = icon("download"),
+                                                       selectInput(inputId = "pcaFigDownType",
+                                                                   label = "Filetype",
+                                                                   choices = c("tiff", "jpeg",
+                                                                               "png", "pdf"),
+                                                                   selected = "tiff"),
+                                                       selectInput(inputId = "pcaFigRes",
+                                                                   label = "Figure resolution",
+                                                                   choices = c("High" = "retina",
+                                                                               "Medium" = "print",
+                                                                               "low" = "screen"),
+                                                                   selected = "print"),
+                                                       downloadButton(outputId = "pcaFigDownload", 
+                                                                      label = "download", 
+                                                                      style="display: block; margin: 0 auto; width: 200px;color: black;")))#PCA close
                                     )
                                     ), #QC metrics close
                    #statistics sidebar
                    conditionalPanel(condition = "input.main_tabs == 'statistics'",
                                     sidebarMenu(
-                                      br(),
-                                      radioButtons(inputId = "ComparisonSwitch",
-                                                   label = "Switch comparison",
-                                                   choices = c("A-B" = 1,
-                                                               "B-A" = 2),
-                                                   selected = 1, inline = TRUE),
-                                      uiOutput("statComparisonMat"),
-                                      radioButtons(inputId = "UserSigCutoff",
-                                                   label = "Choose significance cut off",
-                                                   choices = c("Less than 0.05" = 0.05,
-                                                               "Less than 0.01" = 0.01),
-                                                   selected = 0.05),
-                                      sliderInput(inputId = "UserFCCutoff",
-                                                  label = "Choose log Fold change cutt off",
-                                                  min = 0, max = 3, step = 0.5,
-                                                  value = 1,
-                                                  ticks = TRUE),
-                                      radioButtons(inputId = "pvalAdjust",
-                                                   label = "Choose p-value adjustment",
-                                                   choices = c("Benjamini-Hochberg FDR" = "BH", 
-                                                               "Bonferonni" = "bonferroni",
-                                                               "Hommel" = "hommel",
-                                                               "Benjamini-Yekutieli" = "BY"),
-                                                   selected = "BH"),
-                                      actionButton(inputId = "calculateStats",
-                                                   label = "Calculate",
-                                                   icon = icon("play-circle"),
-                                                   style ="display: block; margin: 0 auto; width: 200px;color: black;"),
-                                      disabled(actionButton(inputId = "statCyclePrevious",
-                                                            label = "Previous",
-                                                            icon = icon("backward"),
-                                                            style="display:inline-block;width:40%;text-align: center;"),
-                                               actionButton(inputId = "statCycleNext",
-                                                            label = "Next",
-                                                            icon = icon("forward"),
-                                                            style="display:inline-block;width:40%;text-align: center;"))
+                                      menuItem(text = "Analyse data",
+                                               icon = icon("calculator"),
+                                               radioButtons(inputId = "ComparisonSwitch",
+                                                            label = "Switch comparison",
+                                                            choices = c("A-B" = 1,
+                                                                        "B-A" = 2),
+                                                            selected = 1, inline = TRUE),
+                                               uiOutput("statComparisonMat"),
+                                               radioButtons(inputId = "UserSigCutoff",
+                                                            label = "Choose significance cut off",
+                                                            choices = c("Less than 0.05" = 0.05,
+                                                                        "Less than 0.01" = 0.01),
+                                                            selected = 0.05),
+                                               sliderInput(inputId = "UserFCCutoff",
+                                                           label = "Choose log Fold change cutt off",
+                                                           min = 0, max = 3, step = 0.5,
+                                                           value = 1,
+                                                           ticks = TRUE),
+                                               radioButtons(inputId = "pvalAdjust",
+                                                            label = "Choose p-value adjustment",
+                                                            choices = c("Benjamini-Hochberg FDR" = "BH", 
+                                                                        "Bonferonni" = "bonferroni",
+                                                                        "Hommel" = "hommel",
+                                                                        "Benjamini-Yekutieli" = "BY"),
+                                                            selected = "BH"),
+                                               actionButton(inputId = "calculateStats",
+                                                            label = "Calculate",
+                                                            icon = icon("play-circle"),
+                                                            style ="display: block; margin: 0 auto; width: 200px;color: black;"),
+                                               disabled(actionButton(inputId = "statCyclePrevious",
+                                                                     label = "Previous",
+                                                                     icon = icon("backward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;"),
+                                                        actionButton(inputId = "statCycleNext",
+                                                                     label = "Next",
+                                                                     icon = icon("forward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;"))),
+                                      menuItem("Download tables",
+                                               icon = icon("download"),
+                                               textInput(inputId = "SigDataDownName",
+                                                         label = "File name",
+                                                         placeholder = "My awesome data"),
+                                               radioButtons(inputId = "WhichSigDataDown",
+                                                            label = "Download:",
+                                                            choices = c("All comparisons" = "all",
+                                                                        "Current comparison" = "current"),
+                                                            selected = "current"),
+                                               radioButtons(inputId = "SigDataDownType",
+                                                            label = "File type",
+                                                            choices = c("Excel" = "xlsx",
+                                                                        "Text" = "txt"),
+                                                            selected = "xlsx"),
+                                               uiOutput("SigDataSelectorUI"),
+                                               downloadButton(outputId = "SigDownload",
+                                                              label = "Download",
+                                                              style="display: block; margin: 0 auto; width: 200px;color: black;"))
                                       )
                                     ),
                    #figure construction sidebar
@@ -508,8 +535,12 @@ ui <- dashboardPage(
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
                                                br(),
+                                               radioButtons(inputId = "HMAllorSig",
+                                                            label = "Plot:",
+                                                            choices = c("All proteins" = "All", "Significant proteins" = "Sig"),
+                                                            selected = "Sig"),
                                                div(style = "text: align-left; color: white,", tags$b("Current comparison")),
-                                               verbatimTextOutput(outputId = "HMcurrentCompareText"),
+                                               uiOutput("HMComparisonUI"),
                                                br(),
                                                disabled(actionButton(inputId = "HMCyclePrevious",
                                                                      label = "Previous",
@@ -654,7 +685,7 @@ ui <- dashboardPage(
                                                                tooltip = TRUE,
                                                                icon = icon("gears"),
                                                                label = "Click for more plotting options",
-                                                               h4("Q-Q plot options"),
+                                                               h4(tags$b("Q-Q plot options")),
                                                                colourInput(inputId = "qqLineCol",
                                                                            label = "Line colour",
                                                                            palette = "limited",
@@ -669,7 +700,7 @@ ui <- dashboardPage(
                                                                                         "dotted", "dotdash", 
                                                                                         "longdash", "twodash"),
                                                                             selected = "solid", inline = TRUE),
-                                                               h4("Q-Q and histogram options"),
+                                                               h4(tags$b("Q-Q and histogram options")),
                                                                sliderInput(inputId = "normTitlePos",
                                                                            label = "Set title position",
                                                                            min = 0, max = 1, step = 0.1,
@@ -678,7 +709,24 @@ ui <- dashboardPage(
                                                                             label = "Title face",
                                                                             choices = c("plain", "bold",
                                                                                         "italic", "bold.italic"),
-                                                                            selected = "plain")),
+                                                                            selected = "plain",
+                                                                            inline = TRUE),
+                                                               h4(tags$b("Font sizes")),
+                                                               fluidRow(column(4,
+                                                                               numericInput(inputId = "normXsize",
+                                                                                            label = "X-axis title",
+                                                                                            min = 1, max = 30, step = 1,
+                                                                                            value = 12)),
+                                                                        column(4,
+                                                                               numericInput(inputId = "normYsize",
+                                                                                            label = "Y-axis title",
+                                                                                            min = 1, max = 30, step = 1,
+                                                                                            value = 12)),
+                                                                        column(4,
+                                                                               numericInput(inputId = "normTitleSize",
+                                                                                            label = "Plot title",
+                                                                                            min = 1, max = 30, step = 1,
+                                                                                            value = 15)))),
                                                 plotOutput("qqPlot")),
                                          column(6,
                                                 dropdownButton(circle = TRUE,
@@ -698,13 +746,113 @@ ui <- dashboardPage(
                                                                             label = "Title face",
                                                                             choices = c("plain", "bold",
                                                                                         "italic", "bold.italic"),
-                                                                            selected = "plain")),
+                                                                            selected = "plain"),
+                                                               h4(tags$b("Font sizes")),
+                                                               fluidRow(column(4,
+                                                                               numericInput(inputId = "scatXsize",
+                                                                                            label = "X-axis title",
+                                                                                            min = 1, max = 30, step = 1,
+                                                                                            value = 12)),
+                                                                        column(4,
+                                                                               numericInput(inputId = "scatYsize",
+                                                                                            label = "Y-axis title",
+                                                                                            min = 1, max = 30, step = 1,
+                                                                                            value = 12)),
+                                                                        column(4,
+                                                                               numericInput(inputId = "scatTitleSize",
+                                                                                            label = "Plot title",
+                                                                                            min = 1, max = 30, step = 1,
+                                                                                            value = 15)))),
                                                 plotOutput("scatPlot"))),
                                        br(),
+                                       #corrplot
                                        fluidRow(
                                          column(6,
+                                                dropdownButton(circle = TRUE,
+                                                               status = "primary",
+                                                               tooltip = TRUE,
+                                                               icon = icon("gears"),
+                                                               label = "Click for more plotting options",
+                                                               h4(tags$b("Plot title options")),
+                                                               sliderInput(inputId = "corrTitlePos",
+                                                                           label = "Set title position",
+                                                                           min = 0, max = 1, step = 0.1,
+                                                                           value = 0),
+                                                               radioButtons(inputId = "corrTitleFace",
+                                                                            label = "Title face",
+                                                                            choices = c("plain", "bold",
+                                                                                        "italic", "bold.italic"),
+                                                                            selected = "plain", inline = TRUE),
+                                                               h4(tags$b("plot aesthetics")),
+                                                               numericInput(inputId = "corrDecimalPos", 
+                                                                            label = "Correlation decimal positions", 
+                                                                            value = 2, min = 1),
+                                                               sliderInput(inputId = "corrColourScale",
+                                                                           label = "Set colour scale",
+                                                                           min = 3, max = 11, step = 1,
+                                                                           value = 11),
+                                                               h4(tags$b("Font sizes")),
+                                                               fluidRow(column(4,
+                                                                               numericInput(inputId = "corrXSize",
+                                                                                            label = "X-axis",
+                                                                                            min = 0, max = 30, step = 0.5,
+                                                                                            value = 12)),
+                                                                        column(4,
+                                                                               numericInput(inputId = "corrYSize",
+                                                                                            label = "Y-axis",
+                                                                                            min = 0, max = 30, step = 0.5,
+                                                                                            value = 12)),
+                                                                        column(4,
+                                                                               numericInput(inputId = "corrTitleSize",
+                                                                                            label = "Plot title",
+                                                                                            min = 0, max = 30, step = 0.5,
+                                                                                            value = 15)))
+                                                               ), #dropdownclose
                                                 plotOutput("corrPlot")),
                                          column(6,
+                                                dropdownButton(circle = TRUE,
+                                                               status = "primary",
+                                                               tooltip = TRUE,
+                                                               icon = icon("gears"),
+                                                               label = "Click for more plotting options",
+                                                               h4(tags$b("Plot aesthetics")),
+                                                               radioButtons(inputId = "pcaLegendPostition", label = "Position legend",
+                                                                            choices = c("right", "left", "top", "bottom", "none"), 
+                                                                            selected = "top", inline = TRUE),
+                                                               radioButtons(inputId = "pcaCharcters",
+                                                                            label = "Select point type",
+                                                                            choices = c("Circle" = 21,
+                                                                                        "Square" = 22,
+                                                                                        "Diamond"= 23,
+                                                                                        "Triangle 1" = 24,
+                                                                                        "Triangle2" = 25),
+                                                                            selected = 21, inline = TRUE),
+                                                               h4(tags$b("Plot title options")),
+                                                               sliderInput(inputId = "pcaTitlePos",
+                                                                           label = "Set title position",
+                                                                           min = 0, max = 1, step = 0.1,
+                                                                           value = 0),
+                                                               radioButtons(inputId = "pcaTitleFace",
+                                                                            label = "Title face",
+                                                                            choices = c("plain", "bold",
+                                                                                        "italic", "bold.italic"),
+                                                                            selected = "plain", inline = TRUE),
+                                                               h4(tags$b("Font sizes")),
+                                                               fluidRow(column(4,
+                                                                               numericInput(inputId = "pcaXSize",
+                                                                                            label = "X-axis",
+                                                                                            min = 0, max = 30, step = 0.5,
+                                                                                            value = 12)),
+                                                                        column(4,
+                                                                               numericInput(inputId = "pcaYSize",
+                                                                                            label = "Y-axis",
+                                                                                            min = 0, max = 30, step = 0.5,
+                                                                                            value = 12)),
+                                                                        column(4,
+                                                                               numericInput(inputId = "pcaTitleSize",
+                                                                                            label = "Plot title",
+                                                                                            min = 0, max = 30, step = 0.5,
+                                                                                            value = 15)))),
                                                 plotOutput("pcaPlot"))
                                        ))),
                             #statistics tab
@@ -727,8 +875,11 @@ ui <- dashboardPage(
                                      icon = icon("chart-area"),
                                      fluidPage(
                                        fluidRow(column(6,
-                                                       dropdownButton(circle = TRUE,status = "primary", tooltip = TRUE,
-                                                                      icon = icon("gears"),label = "Click for more plotting options",
+                                                       dropdownButton(circle = TRUE,
+                                                                      status = "primary", 
+                                                                      tooltip = TRUE,
+                                                                      icon = icon("gears"),
+                                                                      label = "Click for more plotting options",
                                                                       sliderInput(inputId = "volcLinesLWD", 
                                                                                   label = "Set line width",
                                                                                   min = 0, max = 5, step = 0.1, value = 1.4),
@@ -738,7 +889,7 @@ ui <- dashboardPage(
                                                                                                "dotted", "dotdash", 
                                                                                                "longdash", "twodash"),
                                                                                    selected = "longdash", inline = TRUE),
-                                                                      div(tags$b("Control position of significant counts:")),
+                                                                      h4(tags$b("Control position of significant counts:")),
                                                                       br(),
                                                                       fluidRow(column(4,
                                                                                       numericInput(inputId = "volcXdown",
@@ -781,6 +932,7 @@ ui <- dashboardPage(
                                                                       sliderInput(inputId = "HMRowTreeHeight",
                                                                                   label = "Decrease row dendogram height",
                                                                                   min = 0, max = 50, step = 2, value = 50)),
+                                                       tags$head(tags$style(".shiny-output-error{color: black;}")),
                                                        plotOutput("Heatmap")))
                                      ) #fluidpage close
                                      ),#Figs close
@@ -815,34 +967,28 @@ server <- function(input, output, session) {
                      header = TRUE)
     return(data)
   })
-  
-  observe({
-    if (input$unlockCols == TRUE) {
-      enable("addRemCols")
-    } else {
-      disable("addRemCols")
+
+  colPickData <- reactive({
+    if (!is.null(input$user_file)) {
+      df <- file_upload()
+      intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
+      return(intensity.names)
     }
   })
-  #colPickData <- reactive({
-  #  if (!is.null(input$user_file)) {
-   #   df <- file_upload()
-  #    intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
-   #   return(intensity.names)
-  #  }
-  #})
   
-  #output$addRemCols <- renderUI({
-   # if (!is.null(input$user_file)) {
-    #  pickerInput(inputId = "RemCols",
-     #             label = "Remove specific columns",
-      #            choices = unlist(colPickData()),
-       #           multiple = TRUE,
-        #          selected = unlist(colPickData()),
-         #         options = list(`actions-box` = TRUE, 
-          #                       `selected-text-format` = "count > 0"), choicesOpt = list(
-  #                                 style = rep(("color: black;"),length(colPickData()))))
- #   }
-#  })
+  output$addRemCols <- renderUI({
+    if (!is.null(input$user_file) & input$unlockCols == TRUE) {
+      pickerInput(inputId = "RemCols",
+                  label = "Remove specific columns",
+                  choices = unlist(colPickData()),
+                  multiple = TRUE,
+                  selected = unlist(colPickData()),
+                  options = list(`actions-box` = TRUE, 
+                                 `selected-text-format` = "count > 0"), choicesOpt = list(
+                                   style = rep(("color: black;"),length(colPickData()))))
+      
+    } else {return(NULL)}
+  })
   
   #### Data handling ################################################################
   #functions
@@ -949,6 +1095,7 @@ server <- function(input, output, session) {
   processed_data <- reactive({
     if (input$activate_filter > 0) {
       raw <- file_upload()
+      
       uniquePep <- isolate(input$user_unique_pep)
       logTrans <- isolate(input$logTransform)
       
@@ -960,9 +1107,11 @@ server <- function(input, output, session) {
       
       df <- subset(df, df$Unique.peptides > (uniquePep-1))
       # Extract names of intensity columns
-      intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
-      
-      
+      if (input$unlockCols == TRUE) {
+        intensity.names = input$RemCols
+      } else {
+        intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
+      }
       # Cast as numeric
       df[intensity.names] = sapply(df[intensity.names], as.numeric)
       
@@ -1030,6 +1179,7 @@ server <- function(input, output, session) {
         #filter
         dat2 <- dat2[!(dat2$keep=="FALSE"),]
         dat2$keep <- NULL
+        dat2$geneNames <- NULL
         df2 <- dat2
         
         if (input$start_imputation > 0) {
@@ -1045,7 +1195,7 @@ server <- function(input, output, session) {
                             downshift = input$imputeDS,
                             centerMedian = center_dat)
           anno_data <- anno_data()
-          colnames(df2) <- anno_data$annotation
+          colnames(df2) <- anno_data$ID
           df2$GeneNames <- gene.names
           
           return(df2)
@@ -1089,12 +1239,16 @@ server <- function(input, output, session) {
   #This controls enabling and disabling anno button
   observe({
     if (input$submit_anno > 0) {
-      disable("submit_anno")
+      sendSweetAlert(
+        session = session,
+        title = "Success",
+        text = "Your data is submitted",
+        type = "success", 
+        closeOnClickOutside = TRUE,
+        width = 400
+      )
       hide("defineReps")
-    }
-    if (input$anno_enable >= input$submit_anno) {
-      enable("submit_anno")
-      show("defineReps")
+      disable("submit_anno")
     }
   })
   
@@ -1147,10 +1301,6 @@ server <- function(input, output, session) {
   
   observeEvent(input$submit_anno, {
     infovals$countervalue <- infovals$countervalue + 1
-  })
-  
-  observeEvent(input$anno_enable, {
-    infovals$countervalue <- infovals$countervalue - 1
   })
   
   observeEvent(input$filter_valids, {
@@ -1279,16 +1429,7 @@ server <- function(input, output, session) {
     
   }) #valuebox 2 close
   
-  ##########data handling download##########
-
-  output$filt1_download <- downloadHandler(
-    filename = function() {
-      paste("processedData.txt", sep = ",")
-    },
-    content = function(file) {
-      write.csv(processed_data(), file)
-    }
-  )
+ 
 
 #################################################################################
 ######### Quality Metrics ###########################
@@ -1349,7 +1490,10 @@ server <- function(input, output, session) {
             ggtitle(input$qqPlotTitle) +
             theme_classic(base_size = 14) +
             theme(plot.title = element_text(hjust = input$normTitlePos, 
-                                            face = input$normTitleFace ))
+                                            face = input$normTitleFace,
+                                            size = input$normTitleSize),
+                  axis.title.x = element_text(size = input$normXsize),
+                  axis.title.y = element_text(size = input$normYsize))
           
           qqplotList[[i]] = p
         }
@@ -1369,7 +1513,10 @@ server <- function(input, output, session) {
             ggtitle(input$HistoTitle) +
             theme_classic() +
             theme(plot.title = element_text(hjust = input$normTitlePos, 
-                                            face = input$normTitleFace ))
+                                            face = input$normTitleFace,
+                                            size = input$normTitleSize),
+                  axis.title.x = element_text(size = input$normXsize),
+                  axis.title.y = element_text(size = input$normYsize))
           
           if (input$HistoPlotDensity == TRUE) {
             p <- p + geom_density(fill = input$normDensityFill,
@@ -1409,7 +1556,7 @@ server <- function(input, output, session) {
                                  simplify = FALSE)
       
       for (a in 1:length(plot_combinations)) {
-        p = ggplot(processed_data, 
+        p = ggplot(processed_data,
                    aes_string(x = plot_combinations[[a]][1], 
                               y = plot_combinations[[a]][2])) +
           geom_point(pch = as.integer(input$scatCharcters), 
@@ -1420,7 +1567,10 @@ server <- function(input, output, session) {
           ggtitle(input$scatTitle) +
           theme_classic(base_size = 14) +
           theme(plot.title = element_text(hjust = input$scatTitlePos,
-                                          face = input$scatTitleFace))
+                                          face = input$scatTitleFace,
+                                          size = input$scatTitleSize),
+                axis.title.x = element_text(size = input$scatXsize),
+                axis.title.y = element_text(size = input$scatYsize))
         out_name <- paste(i,a,sep = "_")
         plot_list[[out_name]] = p
       }
@@ -1488,12 +1638,16 @@ server <- function(input, output, session) {
       p = ggplot(cordata, aes(x=Var1, y=Var2, fill=value)) +
         geom_tile() + 
         scale_fill_gradientn(colours = brewer.pal(input$corrColChoice, 
-                                                  n = 11), 
+                                                  n = input$corrColourScale), 
                              name = "Pearson",
                              limits = c(input$corrSlider, 1)) +
+        xlab(NULL) + ylab(NULL) + ggtitle(input$corrPlotTitle) +
         theme_classic(base_size = 14) +
-        theme(axis.text.x = element_text(angle=90, hjust=TRUE)) +
-        xlab(NULL) + ylab(NULL)
+        theme(plot.title = element_text(hjust = input$corrTitlePos, 
+                                        face = input$corrTitleFace,
+                                        size = input$corrTitleSize),
+              axis.text.x = element_text(angle=90, hjust = 1, size = input$corrXSize),
+              axis.text.y = element_text(size = input$corrYSize)) 
       
       if (input$corrValDisp == TRUE) {
        p =  p + geom_text(label=cordata$value, size=txtsize * 0.8, color="grey9") 
@@ -1543,6 +1697,9 @@ server <- function(input, output, session) {
       idnames <- anno_data$ID
       dat$GeneNames <- NULL
       colnames(dat) <- as.character(idnames)
+      if (input$pcaZscore == TRUE) {
+        dat <- scale(dat, scale = TRUE)
+      }
       pcaData <- prcomp(x = t(dat), scale. = TRUE)
       pcaData <- as.data.frame(pcaData$x)
       names <- anno_data$annotation
@@ -1572,7 +1729,12 @@ server <- function(input, output, session) {
         ylab("Principle component 2") + xlab("Principle component 1") + 
         labs(fill = NULL) +
         ggtitle(input$pcaPlotTitle) +
-        theme(legend.position = input$pcaLegendPostition)
+        theme(legend.position = input$pcaLegendPostition,
+              plot.title = element_text(hjust = input$pcaTitlePos,
+                                        face = input$pcaTitleFace,
+                                        size = input$pcaTitleSize),
+              axis.title.x = element_text(size = input$pcaXSize),
+              axis.title.y = element_text(size = input$pcaYSize))
       return(p)
     }
   })
@@ -1943,6 +2105,24 @@ server <- function(input, output, session) {
     output$HMcurrentCompareText <- renderText(input$hypoTestMat[HMCycler$counter])
   })
   
+output$HMCurrentCompareUI <- renderUI({
+  if (input$HMAllorSig == "") {
+    
+  }
+  verbatimTextOutput(outputId = "HMcurrentCompareText"),
+})
+
+  observe({
+    if (input$HMAllorSig == "All") {
+      hide("HMcurrentCompareText")
+      updateCheckboxInput(session, "HMDispRow", value = FALSE)
+    } else {
+      show("HMcurrentCompareText")
+      updateCheckboxInput(session, "HMDispRow", value = TRUE)
+    }
+  })
+  
+  
   observeEvent(input$HMCyclePrevious, {
     if (HMCycler$counter > 1) {
       HMCycler$counter <- HMCycler$counter - 1
@@ -1957,7 +2137,7 @@ server <- function(input, output, session) {
     }
   })
   
-  heatmapData <- reactive({
+  SigheatmapData <- reactive({
     fit2 <- statsTestedData()
     processed_data <- processed_data()
     anno_data <- anno_data()
@@ -2067,22 +2247,52 @@ server <- function(input, output, session) {
     } else {
       d4 <- d3
     }
+    
     return(d4)
     
   })
   
+  allHeatMapData <- reactive({
+    d <- processed_data()
+    anno_data <- anno_data()
+    d$GeneNames <- NULL
+    colnames(d) <- anno_data$ID
+    d$UniprotID <- rownames(processed_data)
+    d$UniprotID <- NULL
+    
+    if (input$HMzScore == TRUE) {
+      d2 <- scale(d, scale = TRUE)
+    } else {
+      d2 <- d
+    }
+    
+    return(d2)
+  })
+  
   UserHeatmap <- reactive({
+    anno_data <- anno_data()
     if (input$generateHM > 0) {
-      d1 <- heatmapData()
+      if (input$HMAllorSig == "All") {
+        d1 <- allHeatMapData()
+      } else {
+        d1 <- SigheatmapData()
+      }
+      
       
       if (input$HMdata == "averages") {
-        anno_data <- anno_data()
         colnames(d1) <- anno_data$annotation
         d2 <- sapply(split.default(d1, names(d1)), rowSums, na.rm = TRUE)
       } else {
+        colnames(d1) <- anno_data$axisLabels
         d2 <- d1
       }
-
+      
+      validate(
+        need(dim(d2)[1] != 0, message = "This comparison has no significant proteins"), 
+        errorClass = ".shiny-output-error-validation {
+          color: red;
+        }"
+      )
       p <- pheatmap(d2, color = brewer.pal(input$HMColChoice, 
                                            n = input$HMcolScale),
                     border_color = input$HMborderCol,
@@ -2096,6 +2306,7 @@ server <- function(input, output, session) {
                     show_rownames = input$HMDispRow, 
                     treeheight_col = input$HMColTreeHeight,
                     treeheight_row = input$HMColTreeHeight)
+    
       return(p)
     }
     
@@ -2103,6 +2314,187 @@ server <- function(input, output, session) {
   
   output$Heatmap <- renderPlot(UserHeatmap())
   
+  ##########data handling download##########
+  #processed data
+  output$ProcDataSelectorUI <- renderUI({
+    if (input$ProcDataDownType == "txt") {
+      selectInput(inputId = "ProcDataDownSep",
+                  label = "Choose separator",
+                  choices = c("Tab" = "\t",
+                              "Comma" = ",",
+                              "Space" = " ",
+                              "Colon" = ";"),
+                  selected = "\t")
+    }
+  })
+  dataFileName <- reactive({
+    if (input$ProcDataDownName == "") {
+      if (input$ProcDataDownType == "xlsx") {
+        
+        n = paste(Sys.Date(), "-", "processedMQ", ".", "xlsx", sep = "")
+      } else {
+        n = paste(Sys.Date(), "-", "processedMQ", ".", "txt", sep = "")
+      }
+    } else {
+      if (input$ProcDataDownType == "xlsx") {
+        n = paste(input$ProcDataDownName, ".", "xlsx", sep = "")
+      } else {
+        n = paste(input$ProcDataDownName, ".txt", sep = "")
+      }
+    }
+    return(n)
+  })
+  dataoutprocess <- reactive({
+    d <- processed_data()
+    anno_data <- anno_data()
+    gene.names <- d$GeneNames
+    d$GeneNames <- NULL
+    colnames(d) <- anno_data[1:nrow(anno_data),3]
+    print(colnames(d))
+    d$UniprotID <- rownames(d)
+    d$GeneNames <- gene.names
+    return(d)
+  })
+  
+  output$filt1_download <- downloadHandler(
+    filename = function() {
+     dataFileName()
+    },
+    content = function(file) {
+      if (input$ProcDataDownType == "xlsx") {
+        write.xlsx2(dataoutprocess(), 
+                    file = file, 
+                    sheetName = "Sheet1",
+                    col.names = TRUE, 
+                    row.names = FALSE, 
+                    append = FALSE)
+      } else {
+        write.table(dataoutprocess(), 
+                    file = file, 
+                    sep = input$ProcDataDownSep,
+                    row.names = F)
+        
+      }
+      
+    }
+  )
+  
+  #Significant data
+  output$SigDataSelectorUI <- renderUI({
+    if (input$SigDataDownType == "txt") {
+      selectInput(inputId = "SigDataDownSep",
+                  label = "Choose separator",
+                  choices = c("Tab" = "\t",
+                              "Comma" = ",",
+                              "Space" = " ",
+                              "Colon" = ";"),
+                  selected = "\t")
+    }
+  })
+  SigFileName <- reactive({
+    
+    if (input$WhichSigDataDown == "current") {
+      
+      if (input$SigDataDownName == "") {
+        if (input$SigDataDownType == "xlsx") {
+          
+          n = paste(Sys.Date(), "-", "Statistics", ".", "xlsx", sep = "")
+        } else {
+          n = paste(Sys.Date(), "-", "Statistics", ".", "txt", sep = "")
+        }
+      } else {
+        if (input$SigDataDownType == "xlsx") {
+          n = paste(input$SigDataDownName, ".", "xlsx", sep = "")
+        } else {
+          n = paste(input$SigDataDownName, ".txt", sep = "")
+        }
+      }
+      
+    } else {
+      
+      n <- "Statistics.zip"
+      
+    }
+    
+    return(n)
+  })
+  dataoutSig <- reactive({
+    if (input$WhichSigDataDown == "current") {
+      d <- statsOut()
+      d$UniprotID <- rownames(d)
+      return(d)
+    } else {
+      fit2 <- statsTestedData()
+      datList <- lapply(1:length(statComb()), function(i) {
+        d.out <- paste("d-", i, sep = "")
+        d.out <- data.frame(ID = names(fit2$coefficients[,i]),
+                            pValue = fit2$p.value[,i],
+                            qValue = p.adjust(fit2$p.value[,i], input$pvalAdjust),
+                            EffectSize = fit2$coefficients[,i],
+                            comparison = statComb()[i])
+        
+        d.out <- mutate(d.out, 
+                        sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
+                                     ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
+        dat <- data.frame(d.out,
+                         colsplit(string = d.out$ID, 
+                                  pattern = "_", 
+                                  names = c("UniprotID", "GeneName")))
+        dat$ID <- NULL
+        return(dat)
+        
+      })
+      print(head(datList))
+      return(datList)
+    }
+  })
+  
+  output$SigDownload <- downloadHandler(
+    filename = function() {
+      SigFileName()
+    },
+    content = function(file) {
+      if (input$WhichSigDataDown == "current") {
+        if (input$SigDataDownType == "xlsx") {
+          write.xlsx2(dataoutSig(), 
+                      file = file, 
+                      sheetName = "Sheet1",
+                      col.names = TRUE, 
+                      row.names = FALSE, 
+                      append = FALSE)
+        } else {
+          write.table(dataoutSig(), 
+                      file = file, 
+                      sep = input$SigDataDownSep,
+                      row.names = F)
+          
+        }
+      } else {
+        files <- NULL;
+        for (i in 1:length(dataoutSig())) {
+          print(i)
+          if (input$SigDataDownType == "xlsx") {
+            fileName = paste(Sys.Date(), "-", "Statistics", "-", statComb()[i], ".", "xlsx", sep = "")
+            write.xlsx2(dataoutSig()[i], 
+                        file = fileName, 
+                        sheetName = "Sheet1",
+                        col.names = TRUE, 
+                        row.names = FALSE, 
+                        append = FALSE)
+          } else {
+            fileName = paste(Sys.Date(), "-", "Statistics", "-", statComb()[i], ".", "txt", sep = "")
+            write.table(dataoutSig()[i], 
+                        file = fileName, 
+                        sep = input$SigDataDownSep,
+                        row.names = F)
+          } #file naming close
+          files <- c(fileName, files)
+        } # for loop close
+        zip(file, files)
+      }
+      
+    }
+  )
   #plot download handlers
  normFileName <- reactive({
     if (input$normFigDownChoice == "Current") {
@@ -2234,6 +2626,25 @@ server <- function(input, output, session) {
              dpi = isolate(input$corrFigRes))
     }
   )
+  
+  #pcaPlotDownloads
+  pcaFileName <- reactive({
+    name <- paste("PCA-plot", ".", input$pcaFigDownType,
+                  sep = "")
+    
+    return(name)
+  })
+  
+  output$pcaFigDownload <- downloadHandler(
+    #getting input is not working for filename
+    filename = function() {pcaFileName() },
+    content = function(file) {
+      ggsave(file,
+             plot = pcaPlots(),
+             device = isolate(input$pcaFigDownType),
+             dpi = isolate(input$pcaFigRes))
+    }
+  )
   #main figures
   mainplotOut <- reactive({
     if (input$MainFigDownChoice == "heatmap") {
@@ -2247,7 +2658,6 @@ server <- function(input, output, session) {
   mainFileName <- reactive({
     if (input$MainFigDownChoice == "heatmap") {
       if (input$mainFigDownTitle == "") {
-        print(input$mainFigDownTitle)
         n <- paste("Heatmap-", input$hypoTestMat[HMCycler$counter], ".", input$mainFigDownType,
                    sep = "")
       } else {
