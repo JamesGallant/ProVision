@@ -2,7 +2,9 @@
 #shiny app for analysing mass spec data
 #creators James Gallant, Tiaan Heunis
 #Copyright 2019
-#To do: Better system for column edititng
+#To do:images need to be png format for web
+#Font sizes tab for main images
+#multiplot downloaders for main
 #Libraries we need
 require(shinydashboard)
 require(shiny)
@@ -88,7 +90,7 @@ ui <- dashboardPage(
                                                    br(), "rename your replicates with",
                                                    br(), "the same annotion.",
                                                    br(), "Example:"),
-                                               tags$img(src = 'img1.tif', width = '100%'),
+                                               img(src = 'labelGroup.png', width = '100%'),
                                                div(style = "text-align:center", "once done renaming press",
                                                    br(), "submit to lock in the annotation"),
                                                actionButton(inputId = "submit_anno",
@@ -101,7 +103,7 @@ ui <- dashboardPage(
                                                             label = "Minimum values per replicate", 
                                                             value = 2,
                                                             min = 1
-                                                            ),
+                                               ),
                                                radioButtons(inputId = "in_one",
                                                             label = "Filter valid values by group",
                                                             choices = c("In at least one group" = TRUE,
@@ -133,7 +135,7 @@ ui <- dashboardPage(
                                                                       label = "Center the median",
                                                                       width = 200,
                                                                       value = FALSE)
-                                                        ),
+                                               ),
                                                actionButton(inputId = "start_imputation",
                                                             label = "Start imputing",
                                                             width = 200,
@@ -146,7 +148,7 @@ ui <- dashboardPage(
                                                radioButtons(inputId = "ProcDataDownType",
                                                             label = "File type",
                                                             choices = c("Excel" = "xlsx",
-                                                                       "Text" = "txt"),
+                                                                        "Text" = "txt"),
                                                             selected = "xlsx"),
                                                uiOutput("ProcDataSelectorUI"),
                                                downloadButton(outputId = "filt1_download",
@@ -159,7 +161,7 @@ ui <- dashboardPage(
                                       menuItem("Normality plots",
                                                icon = icon("line-chart"),
                                                actionButton(inputId = "normRender",
-                                                            label = "Generate plot(s)",
+                                                            label = "Render Plot",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
                                                br(),
@@ -253,12 +255,12 @@ ui <- dashboardPage(
                                                         downloadButton(outputId = "normFigDownload", 
                                                                        label = "download", 
                                                                        style="display: block; margin: 0 auto; width: 200px;color: black;"))
-                                               ),
+                                      ),
                                       #scatter plots
                                       menuItem("Scatter plots",
                                                icon = icon("line-chart"),
                                                actionButton(inputId = "scatRender",
-                                                            label = "Generate plot(s)",
+                                                            label = "Render Plot",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
                                                br(),
@@ -319,7 +321,7 @@ ui <- dashboardPage(
                                       menuItem("Correllelogram",
                                                icon = icon("line-chart"),
                                                actionButton(inputId = "corrRender",
-                                                            label = "Generate plot(s)",
+                                                            label = "Render Plot",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
                                                textInput(inputId = "corrPlotTitle", label = "Enter plot title"),
@@ -358,7 +360,7 @@ ui <- dashboardPage(
                                       menuItem("PCA plots",
                                                icon = icon("line-chart"),
                                                actionButton(inputId = "pcaRender",
-                                                            label = "Generate plot(s)",
+                                                            label = "Render Plot",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
                                                textInput(inputId = "pcaPlotTitle", label = "Enter plot title"),
@@ -374,24 +376,24 @@ ui <- dashboardPage(
                                                         uiOutput("pcaColChoice")),
                                                sliderInput(inputId = "pcaAlphaChannel", label = "Change transparency",
                                                            min = 0.1, max = 1, step = 0.1, value = 1),
-                                              menuItem(text = "Downloads",
-                                                       icon = icon("download"),
-                                                       selectInput(inputId = "pcaFigDownType",
-                                                                   label = "Filetype",
-                                                                   choices = c("tiff", "jpeg",
-                                                                               "png", "pdf"),
-                                                                   selected = "tiff"),
-                                                       selectInput(inputId = "pcaFigRes",
-                                                                   label = "Figure resolution",
-                                                                   choices = c("High" = "retina",
-                                                                               "Medium" = "print",
-                                                                               "low" = "screen"),
-                                                                   selected = "print"),
-                                                       downloadButton(outputId = "pcaFigDownload", 
-                                                                      label = "download", 
-                                                                      style="display: block; margin: 0 auto; width: 200px;color: black;")))#PCA close
+                                               menuItem(text = "Downloads",
+                                                        icon = icon("download"),
+                                                        selectInput(inputId = "pcaFigDownType",
+                                                                    label = "Filetype",
+                                                                    choices = c("tiff", "jpeg",
+                                                                                "png", "pdf"),
+                                                                    selected = "tiff"),
+                                                        selectInput(inputId = "pcaFigRes",
+                                                                    label = "Figure resolution",
+                                                                    choices = c("High" = "retina",
+                                                                                "Medium" = "print",
+                                                                                "low" = "screen"),
+                                                                    selected = "print"),
+                                                        downloadButton(outputId = "pcaFigDownload", 
+                                                                       label = "download", 
+                                                                       style="display: block; margin: 0 auto; width: 200px;color: black;")))#PCA close
                                     )
-                                    ), #QC metrics close
+                   ), #QC metrics close
                    #statistics sidebar
                    conditionalPanel(condition = "input.main_tabs == 'statistics'",
                                     sidebarMenu(
@@ -451,8 +453,8 @@ ui <- dashboardPage(
                                                downloadButton(outputId = "SigDownload",
                                                               label = "Download",
                                                               style="display: block; margin: 0 auto; width: 200px;color: black;"))
-                                      )
-                                    ),
+                                    )
+                   ),
                    #figure construction sidebar
                    conditionalPanel(condition = "input.main_tabs == 'figures'",
                                     sidebarMenu(
@@ -493,7 +495,7 @@ ui <- dashboardPage(
                                                                     label = "Non significant", showColour = "both",
                                                                     palette = "limited",
                                                                     value = "#000000")
-                                                        ),
+                                               ),
                                                menuItem(text = div(style = "text-align:left; color: white, ", 
                                                                    tags$b("Label significant proteins")),
                                                         icon = icon("tags"),
@@ -525,9 +527,9 @@ ui <- dashboardPage(
                                                                      choices = c("right", "left", "top", "bottom", "none"), 
                                                                      selected = "top"),
                                                         radioButtons(inputId = "volcFeatures",
-                                                          label = "display:", 
-                                                          choices = c("Lines", "Counts", "Both", "None"),
-                                                          selected = "Both"))
+                                                                     label = "display:", 
+                                                                     choices = c("Lines", "Counts", "Both", "None"),
+                                                                     selected = "Both"))
                                       ),
                                       menuItem("Heatmaps",
                                                actionButton(inputId = "generateHM",
@@ -610,8 +612,8 @@ ui <- dashboardPage(
                                                                     selected = "complete",
                                                                     choicesOpt = list(
                                                                       style = rep(("color: black;"),7)))
-                                                        )
-                                               ),
+                                               )
+                                      ),
                                       menuItem(text = "Downloads",
                                                icon = icon("download"),
                                                radioButtons(inputId = "MainFigDownChoice",
@@ -635,7 +637,7 @@ ui <- dashboardPage(
                                                downloadButton(outputId = "MainFigDownload", 
                                                               label = "download", 
                                                               style="display: block; margin: 0 auto; width: 200px;color: black;")))
-                                    ), #figures close
+                   ), #figures close
                    #about us panel
                    conditionalPanel(condition = "input.main_tabs == 'AboutUs'",
                                     sidebarMenu(
@@ -647,7 +649,7 @@ ui <- dashboardPage(
                                                actionButton("send", "Send mail"))
                                       
                                     ) #sidebar close
-                     
+                                    
                    ) #about us close
   ), #sidebar close
   
@@ -807,7 +809,7 @@ ui <- dashboardPage(
                                                                                             label = "Plot title",
                                                                                             min = 0, max = 30, step = 0.5,
                                                                                             value = 15)))
-                                                               ), #dropdownclose
+                                                ), #dropdownclose
                                                 plotOutput("corrPlot")),
                                          column(6,
                                                 dropdownButton(circle = TRUE,
@@ -868,7 +870,7 @@ ui <- dashboardPage(
                                        ),
                                        fluidRow(column(12,
                                                        dataTableOutput("statsTable"))))
-                                     ),
+                            ),
                             #figures tab
                             tabPanel(title = "Figure construction",
                                      value = "figures",
@@ -909,33 +911,33 @@ ui <- dashboardPage(
                                                                                                    value = 10)))
                                                        ),
                                                        plotOutput("volcplotOut")
-                                                       ),
-                                                column(6,
-                                                       dropdownButton(circle = TRUE,status = "primary", tooltip = TRUE,
-                                                                      icon = icon("gears"),
-                                                                      label = "Click for more plotting options",
-                                                                      fluidRow(column(4,
-                                                                                      numericInput(inputId = "HMColFontSize",
-                                                                                                   label = "Column font size",
-                                                                                                   value = 12)),
-                                                                               column(4,
-                                                                                      numericInput(inputId = "HMRowFontSize",
-                                                                                                   label = "Row font size",
-                                                                                                   value = 12))),
-                                                                      radioButtons(inputId = "HMcolAngle",
-                                                                                   label = "Column text angle",
-                                                                                   choices = c(0, 45, 90, 270, 315),
-                                                                                   selected = 90, inline = TRUE),
-                                                                      sliderInput(inputId = "HMColTreeHeight",
-                                                                                  label = "Decrease column dendogram height",
-                                                                                  min = 0, max = 50, step = 2, value = 50),
-                                                                      sliderInput(inputId = "HMRowTreeHeight",
-                                                                                  label = "Decrease row dendogram height",
-                                                                                  min = 0, max = 50, step = 2, value = 50)),
-                                                       tags$head(tags$style(".shiny-output-error{color: black;}")),
-                                                       plotOutput("Heatmap")))
+                                       ),
+                                       column(6,
+                                              dropdownButton(circle = TRUE,status = "primary", tooltip = TRUE,
+                                                             icon = icon("gears"),
+                                                             label = "Click for more plotting options",
+                                                             fluidRow(column(4,
+                                                                             numericInput(inputId = "HMColFontSize",
+                                                                                          label = "Column font size",
+                                                                                          value = 12)),
+                                                                      column(4,
+                                                                             numericInput(inputId = "HMRowFontSize",
+                                                                                          label = "Row font size",
+                                                                                          value = 12))),
+                                                             radioButtons(inputId = "HMcolAngle",
+                                                                          label = "Column text angle",
+                                                                          choices = c(0, 45, 90, 270, 315),
+                                                                          selected = 90, inline = TRUE),
+                                                             sliderInput(inputId = "HMColTreeHeight",
+                                                                         label = "Decrease column dendogram height",
+                                                                         min = 0, max = 50, step = 2, value = 50),
+                                                             sliderInput(inputId = "HMRowTreeHeight",
+                                                                         label = "Decrease row dendogram height",
+                                                                         min = 0, max = 50, step = 2, value = 50)),
+                                              tags$head(tags$style(".shiny-output-error{color: black;}")),
+                                              plotOutput("Heatmap")))
                                      ) #fluidpage close
-                                     ),#Figs close
+                            ),#Figs close
                             #About us tab
                             tabPanel(title = "About us",
                                      value = "AboutUs",
@@ -949,7 +951,7 @@ ui <- dashboardPage(
                                                 ))
                                        )
                                      )
-                                     ))
+                            ))
                 
   )#Body close
 ) #user interface close
@@ -967,7 +969,7 @@ server <- function(input, output, session) {
                      header = TRUE)
     return(data)
   })
-
+  
   colPickData <- reactive({
     if (!is.null(input$user_file)) {
       df <- file_upload()
@@ -1156,7 +1158,7 @@ server <- function(input, output, session) {
       df2$Protein.IDs <- NULL
       df2$Majority.protein.IDs <- NULL
       orig.col.names <- colnames(df2[names(df2) != "GeneNames"])
-     
+      
       
       if (input$filter_valids > 0) {
         x <- df2
@@ -1254,8 +1256,8 @@ server <- function(input, output, session) {
   
   
   ######filter based on groups#####
- 
- 
+  
+  
   #get df from user inputs
   
   ###### info boxes #####
@@ -1286,13 +1288,13 @@ server <- function(input, output, session) {
     }
   })
   
- 
-   #get df from user inputs
-   
+  
+  #get df from user inputs
+  
   ###### info boxes #####
-
+  
   #information boxes: These display dynamic help for data upload
-
+  
   infovals = reactiveValues(countervalue = 0)
   
   observeEvent(input$activate_filter, {
@@ -1310,7 +1312,7 @@ server <- function(input, output, session) {
   observeEvent(input$start_imputation, {
     infovals$countervalue <- infovals$countervalue + 1
   })
-
+  
   output$data_handling_info <- renderValueBox({
     #check if data is loaded
     if (is.null(input$user_file)) {
@@ -1337,38 +1339,38 @@ server <- function(input, output, session) {
               icon = icon("info"),
               color = "olive")
       
-      } else if (infovals$countervalue == 2 ) {
-        infoBox(title = "Information",
-                value = div("Next step:",
-                            br(),
-                            "valid value filtering"),
-                subtitle = "Recommended choices are autoselected",
-                icon = icon("info"),
-                color = "olive") 
-        
-      } else if (infovals$countervalue == 3) {
-        infoBox(title = "Information",
-                value = div("Next step:",
-                            br(),
-                            "Impute missing data"),
-                subtitle = "Optional step but recommended",
-                icon = icon("info"),
-                color = "olive")
-      } else if (infovals$countervalue == 4) {
-        infoBox(title = "Information",
-                value = div("Next step:",
-                            br(),
-                            "Go to next tab"),
-                subtitle = "Perform QC metrics assesment",
-                icon = icon("info"),
-                color = "olive")
-      } else if (infovals$countervalue > 4) {
-        infoBox(title = "Information",
-                value = "Help is out of bounds",
-                subtitle = "Data calculations are not affected",
-                icon = icon("info"),
-                color = "red")
-      }
+    } else if (infovals$countervalue == 2 ) {
+      infoBox(title = "Information",
+              value = div("Next step:",
+                          br(),
+                          "valid value filtering"),
+              subtitle = "Recommended choices are autoselected",
+              icon = icon("info"),
+              color = "olive") 
+      
+    } else if (infovals$countervalue == 3) {
+      infoBox(title = "Information",
+              value = div("Next step:",
+                          br(),
+                          "Impute missing data"),
+              subtitle = "Optional step but recommended",
+              icon = icon("info"),
+              color = "olive")
+    } else if (infovals$countervalue == 4) {
+      infoBox(title = "Information",
+              value = div("Next step:",
+                          br(),
+                          "Go to next tab"),
+              subtitle = "Perform QC metrics assesment",
+              icon = icon("info"),
+              color = "olive")
+    } else if (infovals$countervalue > 4) {
+      infoBox(title = "Information",
+              value = "Help is out of bounds",
+              subtitle = "Data calculations are not affected",
+              icon = icon("info"),
+              color = "red")
+    }
   })
   
   
@@ -1429,10 +1431,10 @@ server <- function(input, output, session) {
     
   }) #valuebox 2 close
   
- 
-
-#################################################################################
-######### Quality Metrics ###########################
+  
+  
+  #################################################################################
+  ######### Quality Metrics ###########################
   Counter <- reactiveValues(normcounter = 1,
                             scatcounter = 1)
   ###Q-Qplots###
@@ -1522,14 +1524,14 @@ server <- function(input, output, session) {
             p <- p + geom_density(fill = input$normDensityFill,
                                   alpha = input$DensPlotAlphaChannel)
           }
-         
+          
           
           histPlotList[[i]] = p
         }
         
         return(histPlotList)
       }
-
+      
     } else {
       return(NULL)
     }
@@ -1594,13 +1596,13 @@ server <- function(input, output, session) {
       Counter$scatcounter <- Counter$scatcounter - 1
     }
   })
-
+  
   observeEvent(input$scatNext, {
     if (Counter$scatcounter < length(scatter_user())) {
       Counter$scatcounter <- Counter$scatcounter + 1
     } else {
       Counter$scatcounter <- Counter$scatcounter - (length(scatter_user()) + 1)
-     
+      
     }
   })
   
@@ -1650,8 +1652,8 @@ server <- function(input, output, session) {
               axis.text.y = element_text(size = input$corrYSize)) 
       
       if (input$corrValDisp == TRUE) {
-       p =  p + geom_text(label=cordata$value, size=txtsize * 0.8, color="grey9") 
-       return(p)
+        p =  p + geom_text(label=cordata$value, size=txtsize * 0.8, color="grey9") 
+        return(p)
       } else {
         return(p)
       }
@@ -1660,7 +1662,7 @@ server <- function(input, output, session) {
   
   output$corrPlot <- renderPlot({
     correllelogram()
-    })
+  })
   
   #pca plots
   #Display groups system
@@ -1773,7 +1775,7 @@ server <- function(input, output, session) {
       }
       return(compare)
     })
-    })
+  })
   
   output$statComparisonMat <- renderUI({
     pickerInput(inputId = "hypoTestMat", 
@@ -1795,7 +1797,7 @@ server <- function(input, output, session) {
     }
   })
   
- 
+  
   #infoboxes
   output$currentCompare <- renderInfoBox({
     if (input$calculateStats > 0) {
@@ -1839,7 +1841,7 @@ server <- function(input, output, session) {
       
     } else {
       return(NULL)
-      }
+    }
   })
   
   statsOut <- reactive({
@@ -1925,9 +1927,9 @@ server <- function(input, output, session) {
                   
                   # customize the length menu
                   lengthMenu = list( c(10, 20, -1) # declare values
-                                       , c(10, 20, "All") # declare titles
+                                     , c(10, 20, "All") # declare titles
                   ), # end of lengthMenu customization
-                 pageLength = 10 
+                  pageLength = 10 
                 ))
     }
   })
@@ -1966,7 +1968,7 @@ server <- function(input, output, session) {
                         comparison = statComb[volcCycler$counter])
     d.out <- mutate(d.out, 
                     sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
-                              ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
+                                 ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
     
     
     d2 <- data.frame(d.out,
@@ -2053,17 +2055,17 @@ server <- function(input, output, session) {
       
       if (input$volcFeatures == "Lines") {
         p <- p +  geom_vline(aes(xintercept = (input$UserFCCutoff*-1)),
-                        lty = input$volcLinesType, 
-                        colour = input$volcDown,
-                        lwd=input$volcLinesLWD) +
-                  geom_vline(aes(xintercept = input$UserFCCutoff), 
-                         lty = input$volcLinesType, colour =input$volcUp, 
-                         lwd=input$volcLinesLWD) 
+                             lty = input$volcLinesType, 
+                             colour = input$volcDown,
+                             lwd=input$volcLinesLWD) +
+          geom_vline(aes(xintercept = input$UserFCCutoff), 
+                     lty = input$volcLinesType, colour =input$volcUp, 
+                     lwd=input$volcLinesLWD) 
       }
       
       if (input$volcFeatures == "Counts") {
         p <- p + geom_text(aes(x = input$volcXdown, y= input$volcYdown, label=d.down)) +
-                 geom_text(aes(x = input$volcXup, y= input$volcYup, label=d.up))
+          geom_text(aes(x = input$volcXup, y= input$volcYup, label=d.up))
       }
       
       if (input$volcFeatures == "Both") {
@@ -2071,15 +2073,15 @@ server <- function(input, output, session) {
                             lty = input$volcLinesType, 
                             colour = input$volcDown,
                             lwd=input$volcLinesLWD) +
-                geom_vline(aes(xintercept = input$UserFCCutoff), 
-                           lty = input$volcLinesType, colour =input$volcUp, 
-                           lwd=input$volcLinesLWD) + 
-                geom_text(aes(x = input$volcXdown, 
-                              y=input$volcYdown, 
-                              label=d.down)) +
-                geom_text(aes(x = input$volcXup, 
-                              y= input$volcYup, 
-                              label=d.up))
+          geom_vline(aes(xintercept = input$UserFCCutoff), 
+                     lty = input$volcLinesType, colour =input$volcUp, 
+                     lwd=input$volcLinesLWD) + 
+          geom_text(aes(x = input$volcXdown, 
+                        y=input$volcYdown, 
+                        label=d.down)) +
+          geom_text(aes(x = input$volcXup, 
+                        y= input$volcYup, 
+                        label=d.up))
       } 
       
       if (input$volcFeatures == "None") {
@@ -2087,13 +2089,13 @@ server <- function(input, output, session) {
       }
       
       return(p)
-     
+      
     } else {
       return(NULL)
     }
     
   })
-
+  
   output$volcplotOut <-renderPlot(volcPlot())
   
   ###heatmaps###
@@ -2105,19 +2107,17 @@ server <- function(input, output, session) {
     output$HMcurrentCompareText <- renderText(input$hypoTestMat[HMCycler$counter])
   })
   
-output$HMCurrentCompareUI <- renderUI({
-  if (input$HMAllorSig == "") {
-    
-  }
-  verbatimTextOutput(outputId = "HMcurrentCompareText"),
-})
-
+  output$HMComparisonUI <- renderUI({
+    if (input$HMAllorSig == "Sig") {
+      
+      verbatimTextOutput(outputId = "HMcurrentCompareText")
+    }
+  })
+  
   observe({
     if (input$HMAllorSig == "All") {
-      hide("HMcurrentCompareText")
       updateCheckboxInput(session, "HMDispRow", value = FALSE)
     } else {
-      show("HMcurrentCompareText")
       updateCheckboxInput(session, "HMDispRow", value = TRUE)
     }
   })
@@ -2191,20 +2191,20 @@ output$HMCurrentCompareUI <- renderUI({
         select(UniprotID, GeneName)
       
       colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
-        
-        d2 <- merge(d2, d.down, by = "UniprotID", all.x  = TRUE)
-        d2$GeneName <- NULL
-        d3 <- merge(processed_data, d2[, c("UniprotID", "GeneNamedown")], 
-                    by = "UniprotID", 
-                    all.x = TRUE)
-        d3 = d3 %>% 
-          drop_na(GeneNamedown)
-        
-        rownames(d3) <- d3$GeneNamedown
-        d3$GeneNameup <- NULL
-        d3$UniprotID <- NULL
-        d3 <- d3[,1:nrow(anno_data)]
-        
+      
+      d2 <- merge(d2, d.down, by = "UniprotID", all.x  = TRUE)
+      d2$GeneName <- NULL
+      d3 <- merge(processed_data, d2[, c("UniprotID", "GeneNamedown")], 
+                  by = "UniprotID", 
+                  all.x = TRUE)
+      d3 = d3 %>% 
+        drop_na(GeneNamedown)
+      
+      rownames(d3) <- d3$GeneNamedown
+      d3$GeneNameup <- NULL
+      d3$UniprotID <- NULL
+      d3 <- d3[,1:nrow(anno_data)]
+      
     } else if (input$HMSigLabels == "Both") {
       d.up = d2 %>% 
         filter(sig == "Upregulated") %>%
@@ -2290,8 +2290,8 @@ output$HMCurrentCompareUI <- renderUI({
       validate(
         need(dim(d2)[1] != 0, message = "This comparison has no significant proteins"), 
         errorClass = ".shiny-output-error-validation {
-          color: red;
-        }"
+        color: red;
+    }"
       )
       p <- pheatmap(d2, color = brewer.pal(input$HMColChoice, 
                                            n = input$HMcolScale),
@@ -2306,9 +2306,9 @@ output$HMCurrentCompareUI <- renderUI({
                     show_rownames = input$HMDispRow, 
                     treeheight_col = input$HMColTreeHeight,
                     treeheight_row = input$HMColTreeHeight)
-    
+      
       return(p)
-    }
+  }
     
   })
   
@@ -2358,7 +2358,7 @@ output$HMCurrentCompareUI <- renderUI({
   
   output$filt1_download <- downloadHandler(
     filename = function() {
-     dataFileName()
+      dataFileName()
     },
     content = function(file) {
       if (input$ProcDataDownType == "xlsx") {
@@ -2437,9 +2437,9 @@ output$HMCurrentCompareUI <- renderUI({
                         sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
                                      ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
         dat <- data.frame(d.out,
-                         colsplit(string = d.out$ID, 
-                                  pattern = "_", 
-                                  names = c("UniprotID", "GeneName")))
+                          colsplit(string = d.out$ID, 
+                                   pattern = "_", 
+                                   names = c("UniprotID", "GeneName")))
         dat$ID <- NULL
         return(dat)
         
@@ -2471,32 +2471,36 @@ output$HMCurrentCompareUI <- renderUI({
         }
       } else {
         files <- NULL;
-        for (i in 1:length(dataoutSig())) {
-          print(i)
-          if (input$SigDataDownType == "xlsx") {
-            fileName = paste(Sys.Date(), "-", "Statistics", "-", statComb()[i], ".", "xlsx", sep = "")
-            write.xlsx2(dataoutSig()[i], 
-                        file = fileName, 
-                        sheetName = "Sheet1",
-                        col.names = TRUE, 
-                        row.names = FALSE, 
-                        append = FALSE)
-          } else {
-            fileName = paste(Sys.Date(), "-", "Statistics", "-", statComb()[i], ".", "txt", sep = "")
-            write.table(dataoutSig()[i], 
-                        file = fileName, 
-                        sep = input$SigDataDownSep,
-                        row.names = F)
-          } #file naming close
-          files <- c(fileName, files)
-        } # for loop close
+        withProgress(message = "Saving files", value = 0, {
+          for (i in 1:length(dataoutSig())) {
+            if (input$SigDataDownType == "xlsx") {
+              fileName = paste(Sys.Date(), "-", "Statistics", "-", statComb()[i], ".", "xlsx", sep = "")
+              write.xlsx2(dataoutSig()[i], 
+                          file = fileName, 
+                          sheetName = "Sheet1",
+                          col.names = TRUE, 
+                          row.names = FALSE, 
+                          append = FALSE)
+            } else {
+              fileName = paste(Sys.Date(), "-", "Statistics", "-", statComb()[i], ".", "txt", sep = "")
+              write.table(dataoutSig()[i], 
+                          file = fileName, 
+                          sep = input$SigDataDownSep,
+                          row.names = F)
+            } #file naming close
+            files <- c(fileName, files)
+            incProgress(1/length(dataoutSig()), 
+                        detail = paste("Adding file:", i, sep = " "))
+          } # for loop close
+        })
+        
         zip(file, files)
       }
       
     }
   )
   #plot download handlers
- normFileName <- reactive({
+  normFileName <- reactive({
     if (input$normFigDownChoice == "Current") {
       p <- NormalityPlot()[Counter$normcounter]
       axisTitleList <- as.character(unlist(p[[1]][["labels"]]))
@@ -2513,7 +2517,7 @@ output$HMCurrentCompareUI <- renderUI({
                       input$normFigDownType,
                       sep = "")
       }
-     
+      
     } else {
       if (input$normPlotChoice == "qqPlot") {
         name <- "qqplots.zip"
@@ -2536,33 +2540,38 @@ output$HMCurrentCompareUI <- renderUI({
         )
       } else {
         files <- NULL;
-        for (i in 1:length(NormalityPlot())) {
-          p <- NormalityPlot()[[i]]
-          axisTitleList <- as.character(unlist(p[["labels"]]))
-          
-          if (input$normPlotChoice == "qqPlot") {
-            FileName <- paste("qqPlot-", axisTitleList[2], ".", 
-                              input$normFigDownType,
-                              sep = "")
-          } else{
-            FileName <- paste("Histogram-", axisTitleList[2], ".", 
-                              input$normFigDownType,
-                              sep = "")
+        withProgress(message = "Saving files", value = 0, {
+          for (i in 1:length(NormalityPlot())) {
+            p <- NormalityPlot()[[i]]
+            axisTitleList <- as.character(unlist(p[["labels"]]))
+            
+            if (input$normPlotChoice == "qqPlot") {
+              FileName <- paste("qqPlot-", axisTitleList[2], ".", 
+                                input$normFigDownType,
+                                sep = "")
+            } else{
+              FileName <- paste("Histogram-", axisTitleList[2], ".", 
+                                input$normFigDownType,
+                                sep = "")
+            }
+            
+            ggsave(filename = FileName,
+                   plot = NormalityPlot()[[i]],
+                   device = isolate(input$normFigDownType),
+                   dpi = isolate(input$normFigRes)
+            )
+            #files
+            files <- c(FileName, files)
+            incProgress(amount = 1/length(NormalityPlot()), 
+                        detail = paste("Adding plot:", i, sep = " "))
           }
-          
-          ggsave(filename = FileName,
-                 plot = NormalityPlot()[[i]],
-                 device = isolate(input$normFigDownType),
-                 dpi = isolate(input$normFigRes)
-          )
-          #files
-          files <- c(FileName, files)
-        }
+        })
+        
         zip(file, files)
       }
     }
   )
- 
+  
   #scatterplots
   scatFileName <- reactive({
     if (input$scatFigDownChoice == "Current") {
@@ -2585,24 +2594,28 @@ output$HMCurrentCompareUI <- renderUI({
                plot = scatter_user()[[Counter$scatcounter]],
                device = isolate(input$scatFigDownType),
                dpi = isolate(input$scatFigRes)
-               )
+        )
       } else {
         files <- NULL;
-        for (i in 1:length(scatter_user())) {
-          p <- scatter_user()[[i]]
-          axisTitleList <- as.character(unlist(p[["labels"]]))
-          axisTitle <- paste(axisTitleList[1], axisTitleList[2], sep = "-")
-          FileName <- paste("Scatter-", axisTitle, ".", input$scatFigDownType,
-                        sep = "")
-          
-          ggsave(filename = FileName,
+        withProgress(message = "Saving files", value = 0, {
+          for (i in 1:length(scatter_user())) {
+            p <- scatter_user()[[i]]
+            axisTitleList <- as.character(unlist(p[["labels"]]))
+            axisTitle <- paste(axisTitleList[1], axisTitleList[2], sep = "-")
+            FileName <- paste("Scatter-", axisTitle, ".", input$scatFigDownType,
+                              sep = "")
+            
+            ggsave(filename = FileName,
                    plot = scatter_user()[[i]],
-                 device = isolate(input$scatFigDownType),
-                 dpi = isolate(input$scatFigRes)
-          )
-          #files
-          files <- c(FileName, files)
-        }
+                   device = isolate(input$scatFigDownType),
+                   dpi = isolate(input$scatFigRes)
+            )
+            #files
+            files <- c(FileName, files)
+            incProgress(1/length(scatter_user()), detail = paste("Adding plot:", i, sep = " "))
+          }
+        })
+       
         zip(file, files)
       }
     }
@@ -2612,7 +2625,7 @@ output$HMCurrentCompareUI <- renderUI({
   corrFileName <- reactive({
     name <- paste("Correlogram", ".", input$corrFigDownType,
                   sep = "")
-
+    
     return(name)
   })
   
