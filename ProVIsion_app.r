@@ -1843,7 +1843,6 @@ server <- function(input, output, session) {
       
       fit2 <- contrasts.fit(fit, cont.matrix)
       fit2 <- eBayes(fit2)
-      print(head(fit2$coefficients))
       return(fit2)
       
     } else {
@@ -1942,6 +1941,81 @@ server <- function(input, output, session) {
   })
   
   ###volcplots###
+  volcPlotData <- reactive({
+    datList <- list()
+    for (i in 1:length(input$hypoTestMat)) {
+      if (input$generateVolcs > 0) {
+        fit2 <- statsTestedData()
+        statComb <- statComb()
+        
+        d.out <- data.frame(ID = names(fit2$coefficients[,i]),
+                            pValue = fit2$p.value[,i],
+                            qValue = p.adjust(fit2$p.value[,i], input$pvalAdjust),
+                            EffectSize = fit2$coefficients[,i],
+                            comparison = statComb[i])
+        d.out <- mutate(d.out, 
+                        sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
+                                     ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
+        
+        
+        d2 <- data.frame(d.out,
+                         colsplit(string = d.out$ID, 
+                                  pattern = "_", 
+                                  names = c("UniprotID", "GeneName")))
+        
+        if (input$volclabelNoOfSig > 0) {
+          
+          if (input$volcSigLabels == "Upregulated") {
+            d.up = d2 %>% 
+              filter(sig == "Upregulated") %>%
+              arrange(desc(EffectSize)) %>%
+              slice(1:input$volclabelNoOfSig) %>%
+              select(UniprotID, GeneName)
+            
+            d2 <- merge(d2, d.up, by = "UniprotID", all.x  = TRUE)
+          } else if (input$volcSigLabels == "Downregulated") {
+            d.down = d2 %>% 
+              filter(sig == "Downregulated") %>%
+              arrange(EffectSize) %>%
+              slice(1:input$volclabelNoOfSig) %>%
+              select(UniprotID, GeneName)
+            
+            d2 <- merge(d2, d.down, by = "UniprotID", all.x  = TRUE)
+            
+          } else if (input$volcSigLabels == "Both") {
+            d.up = d2 %>% 
+              filter(sig == "Upregulated") %>%
+              arrange(desc(EffectSize)) %>%
+              slice(1:input$volclabelNoOfSig) %>%
+              select(UniprotID, GeneName) 
+            
+            colnames(d.up)[colnames(d.up)=="GeneName"] <- "GeneNameup"
+            
+            d.down = d2 %>% 
+              filter(sig == "Downregulated") %>%
+              arrange(EffectSize) %>%
+              slice(1:input$volclabelNoOfSig) %>%
+              select(UniprotID, GeneName) 
+            
+            colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
+            
+            df.down <- merge(d2, d.down, by = "UniprotID", all.x = TRUE)
+            df.down$GeneName <- NULL
+            d2 <- merge(df.down, d.up, by = "UniprotID", all.x = TRUE)
+          }
+        }
+      }
+      rownames(d2) <- d2$UniprotID
+      d2$ID <- NULL
+      d2$UniprotID <- NULL
+      
+      datName <- input$hypoTestMat[i]
+      datList[[datName]] = d2
+      
+    } #for loop close
+    return(datList)
+  })
+  
   observeEvent(input$generateVolcs, {
     enable("volcCyclePrevious")
     enable("volcCycleNext")
@@ -1964,76 +2038,9 @@ server <- function(input, output, session) {
     }
   })
   
-  volcPlotData <- reactive({
-    fit2 <- statsTestedData()
-    statComb <- statComb()
-    
-    d.out <- data.frame(ID = names(fit2$coefficients[,volcCycler$counter]),
-                        pValue = fit2$p.value[,volcCycler$counter],
-                        qValue = p.adjust(fit2$p.value[,volcCycler$counter], input$pvalAdjust),
-                        EffectSize = fit2$coefficients[,volcCycler$counter],
-                        comparison = statComb[volcCycler$counter])
-    d.out <- mutate(d.out, 
-                    sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
-                                 ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
-    
-    
-    d2 <- data.frame(d.out,
-                     colsplit(string = d.out$ID, 
-                              pattern = "_", 
-                              names = c("UniprotID", "GeneName")))
-    
-    if (input$volclabelNoOfSig > 0) {
-      
-      if (input$volcSigLabels == "Upregulated") {
-        d.up = d2 %>% 
-          filter(sig == "Upregulated") %>%
-          arrange(desc(EffectSize)) %>%
-          slice(1:input$volclabelNoOfSig) %>%
-          select(UniprotID, GeneName)
-        
-        d2 <- merge(d2, d.up, by = "UniprotID", all.x  = TRUE)
-      } else if (input$volcSigLabels == "Downregulated") {
-        d.down = d2 %>% 
-          filter(sig == "Downregulated") %>%
-          arrange(EffectSize) %>%
-          slice(1:input$volclabelNoOfSig) %>%
-          select(UniprotID, GeneName)
-        
-        d2 <- merge(d2, d.down, by = "UniprotID", all.x  = TRUE)
-        
-      } else if (input$volcSigLabels == "Both") {
-        d.up = d2 %>% 
-          filter(sig == "Upregulated") %>%
-          arrange(desc(EffectSize)) %>%
-          slice(1:input$volclabelNoOfSig) %>%
-          select(UniprotID, GeneName) 
-        
-        colnames(d.up)[colnames(d.up)=="GeneName"] <- "GeneNameup"
-        
-        d.down = d2 %>% 
-          filter(sig == "Downregulated") %>%
-          arrange(EffectSize) %>%
-          slice(1:input$volclabelNoOfSig) %>%
-          select(UniprotID, GeneName) 
-        
-        colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
-        
-        df.down <- merge(d2, d.down, by = "UniprotID", all.x = TRUE)
-        df.down$GeneName <- NULL
-        d2 <- merge(df.down, d.up, by = "UniprotID", all.x = TRUE)
-      }
-    }
-    
-    rownames(d2) <- d2$UniprotID
-    d2$ID <- NULL
-    d2$UniprotID <- NULL
-    return(d2)
-  })
-  
   volcPlot <- reactive({
     if (input$generateVolcs > 0) {
-      d <- volcPlotData()
+      d <- volcPlotData()[[volcCycler$counter]]
       #volcSigLabel <- volcSigLabel()
       d.down = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize < (input$UserFCCutoff * -1) )
       d.up = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize > input$UserFCCutoff )
@@ -2106,6 +2113,129 @@ server <- function(input, output, session) {
   output$volcplotOut <-renderPlot(volcPlot())
   
   ###heatmaps###
+  HMPlotData <- reactive({
+    fit2 <- statsTestedData()
+    processed_data <- processed_data()
+    anno_data <- anno_data()
+    processed_data$GeneName <- NULL
+    colnames(processed_data) <- anno_data$ID
+    processed_data$UniprotID <- rownames(processed_data)
+    
+    statComb <- statComb()
+    datList <- list()
+    for (i in 1:length(input$hypoTestMat)) {
+      if (input$generateHM > 0) {
+        d.out <- data.frame(ID = names(fit2$coefficients[,i]),
+                            pValue = fit2$p.value[,i],
+                            qValue = p.adjust(fit2$p.value[,i], input$pvalAdjust),
+                            EffectSize = fit2$coefficients[,i],
+                            comparison = statComb[i])
+        d.out <- mutate(d.out, 
+                        sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
+                                     ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
+        
+        
+        d2 <- data.frame(d.out,
+                         colsplit(string = d.out$ID, 
+                                  pattern = "_", 
+                                  names = c("UniprotID", "GeneName")))
+        
+        if (input$HMAllorSig == "Sig") {
+          if (input$HMSigLabels == "Upregulated") {
+            d.up = d2 %>% 
+              filter(sig == "Upregulated") %>%
+              arrange(desc(EffectSize)) %>%
+              slice(1:input$HMlabelNoOfSig) %>%
+              select(UniprotID, GeneName)
+            colnames(d.up)[colnames(d.up)=="GeneName"] <- "GeneNameup"
+            
+            d2 <- merge(d2, d.up, by = "UniprotID", all.x  = TRUE)
+            d2$GeneName <- NULL
+            d3 <- merge(processed_data, d2[, c("UniprotID", "GeneNameup")], by = "UniprotID", 
+                        all.x = TRUE)
+            d3 = d3 %>% 
+              drop_na(GeneNameup)
+            
+            rownames(d3) <- d3$GeneNameup
+            d3$GeneNameup <- NULL
+            d3$UniprotID <- NULL
+            d3 <- d3[,1:nrow(anno_data)]
+            
+          } else if (input$HMSigLabels == "Downregulated") {
+            d.down = d2 %>% 
+              filter(sig == "Downregulated") %>%
+              arrange(EffectSize) %>%
+              slice(1:input$HMlabelNoOfSig) %>%
+              select(UniprotID, GeneName)
+            
+            colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
+            
+            d2 <- merge(d2, d.down, by = "UniprotID", all.x  = TRUE)
+            d2$GeneName <- NULL
+            d3 <- merge(processed_data, d2[, c("UniprotID", "GeneNamedown")], 
+                        by = "UniprotID", 
+                        all.x = TRUE)
+            d3 = d3 %>% 
+              drop_na(GeneNamedown)
+            
+            rownames(d3) <- d3$GeneNamedown
+            d3$GeneNameup <- NULL
+            d3$UniprotID <- NULL
+            d3 <- d3[,1:nrow(anno_data)]
+            
+          } else if (input$HMSigLabels == "Both") {
+            d.up = d2 %>% 
+              filter(sig == "Upregulated") %>%
+              arrange(desc(EffectSize)) %>%
+              slice(1:input$HMlabelNoOfSig) %>%
+              select(UniprotID, GeneName) 
+            
+            colnames(d.up)[colnames(d.up)=="GeneName"] <- "GeneNameup"
+            
+            d.down = d2 %>% 
+              filter(sig == "Downregulated") %>%
+              arrange(EffectSize) %>%
+              slice(1:input$HMlabelNoOfSig) %>%
+              select(UniprotID, GeneName) 
+            
+            colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
+            
+            df.down <- merge(d2, d.down, by = "UniprotID", all.x = TRUE)
+            df.down$GeneName <- NULL
+            
+            d2 <- merge(df.down, d.up, by = "UniprotID", all.x = TRUE)
+            
+            d2$GeneName <- coalesce(d2$GeneNameup, d2$GeneNamedown)
+            
+            d3 <- merge(processed_data, d2, by = "UniprotID",
+                        all.x = TRUE)
+            d3 = d3 %>%
+              drop_na(GeneName)
+            
+            rownames(d3) <- d3$GeneName
+            
+            d3$UniprotID <- NULL
+            
+            d3 <- d3[,1:nrow(anno_data)]
+            
+          }
+          
+          if (input$HMzScore == TRUE) {
+            d4 <- scale(d3, scale = TRUE)
+          } else {
+            d4 <- d3
+          }
+          
+          datName <- input$hypoTestMat[i]
+          datList[[datName]] = d4
+        }
+        
+      } #GenerateHM close
+      
+    } #for loop close
+    return(datList)
+  })
+  
   HMCycler <- reactiveValues(counter = 1)
   
   observeEvent(input$generateHM, {
@@ -2144,121 +2274,6 @@ server <- function(input, output, session) {
     }
   })
   
-  SigheatmapData <- reactive({
-    fit2 <- statsTestedData()
-    processed_data <- processed_data()
-    anno_data <- anno_data()
-    processed_data$GeneName <- NULL
-    colnames(processed_data) <- anno_data$ID
-    processed_data$UniprotID <- rownames(processed_data)
-    
-    statComb <- statComb()
-    
-    d.out <- data.frame(ID = names(fit2$coefficients[,HMCycler$counter]),
-                        pValue = fit2$p.value[,HMCycler$counter],
-                        qValue = p.adjust(fit2$p.value[,HMCycler$counter], input$pvalAdjust),
-                        EffectSize = fit2$coefficients[,HMCycler$counter],
-                        comparison = statComb[HMCycler$counter])
-    
-    d.out <- mutate(d.out, 
-                    sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
-                                 ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
-    
-    
-    d2 <- data.frame(d.out,
-                     colsplit(string = d.out$ID, 
-                              pattern = "_", 
-                              names = c("UniprotID", "GeneName")))
-    
-    if (input$HMSigLabels == "Upregulated") {
-      d.up = d2 %>% 
-        filter(sig == "Upregulated") %>%
-        arrange(desc(EffectSize)) %>%
-        slice(1:input$HMlabelNoOfSig) %>%
-        select(UniprotID, GeneName)
-      colnames(d.up)[colnames(d.up)=="GeneName"] <- "GeneNameup"
-      
-      d2 <- merge(d2, d.up, by = "UniprotID", all.x  = TRUE)
-      d2$GeneName <- NULL
-      d3 <- merge(processed_data, d2[, c("UniprotID", "GeneNameup")], by = "UniprotID", 
-                  all.x = TRUE)
-      d3 = d3 %>% 
-        drop_na(GeneNameup)
-      
-      rownames(d3) <- d3$GeneNameup
-      d3$GeneNameup <- NULL
-      d3$UniprotID <- NULL
-      d3 <- d3[,1:nrow(anno_data)]
-      
-    } else if (input$HMSigLabels == "Downregulated") {
-      d.down = d2 %>% 
-        filter(sig == "Downregulated") %>%
-        arrange(EffectSize) %>%
-        slice(1:input$HMlabelNoOfSig) %>%
-        select(UniprotID, GeneName)
-      
-      colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
-      
-      d2 <- merge(d2, d.down, by = "UniprotID", all.x  = TRUE)
-      d2$GeneName <- NULL
-      d3 <- merge(processed_data, d2[, c("UniprotID", "GeneNamedown")], 
-                  by = "UniprotID", 
-                  all.x = TRUE)
-      d3 = d3 %>% 
-        drop_na(GeneNamedown)
-      
-      rownames(d3) <- d3$GeneNamedown
-      d3$GeneNameup <- NULL
-      d3$UniprotID <- NULL
-      d3 <- d3[,1:nrow(anno_data)]
-      
-    } else if (input$HMSigLabels == "Both") {
-      d.up = d2 %>% 
-        filter(sig == "Upregulated") %>%
-        arrange(desc(EffectSize)) %>%
-        slice(1:input$HMlabelNoOfSig) %>%
-        select(UniprotID, GeneName) 
-      
-      colnames(d.up)[colnames(d.up)=="GeneName"] <- "GeneNameup"
-      
-      d.down = d2 %>% 
-        filter(sig == "Downregulated") %>%
-        arrange(EffectSize) %>%
-        slice(1:input$HMlabelNoOfSig) %>%
-        select(UniprotID, GeneName) 
-      
-      colnames(d.down)[colnames(d.down)=="GeneName"] <- "GeneNamedown"
-      
-      df.down <- merge(d2, d.down, by = "UniprotID", all.x = TRUE)
-      df.down$GeneName <- NULL
-      
-      d2 <- merge(df.down, d.up, by = "UniprotID", all.x = TRUE)
-      
-      d2$GeneName <- coalesce(d2$GeneNameup, d2$GeneNamedown)
-      
-      d3 <- merge(processed_data, d2, by = "UniprotID",
-                  all.x = TRUE)
-      d3 = d3 %>%
-        drop_na(GeneName)
-      
-      rownames(d3) <- d3$GeneName
-      
-      d3$UniprotID <- NULL
-      
-      d3 <- d3[,1:nrow(anno_data)]
-      
-    }
-    
-    if (input$HMzScore == TRUE) {
-      d4 <- scale(d3, scale = TRUE)
-    } else {
-      d4 <- d3
-    }
-    
-    return(d4)
-    
-  })
-  
   allHeatMapData <- reactive({
     d <- processed_data()
     anno_data <- anno_data()
@@ -2282,7 +2297,8 @@ server <- function(input, output, session) {
       if (input$HMAllorSig == "All") {
         d1 <- allHeatMapData()
       } else {
-        d1 <- SigheatmapData()
+        d1 <- HMPlotData()[[HMCycler$counter]]
+        #d1 <- SigheatmapData()
       }
       
       
@@ -2357,7 +2373,6 @@ server <- function(input, output, session) {
     gene.names <- d$GeneNames
     d$GeneNames <- NULL
     colnames(d) <- anno_data[1:nrow(anno_data),3]
-    print(colnames(d))
     d$UniprotID <- rownames(d)
     d$GeneNames <- gene.names
     return(d)
@@ -2451,7 +2466,6 @@ server <- function(input, output, session) {
         return(dat)
         
       })
-      print(head(datList))
       return(datList)
     }
   })
@@ -2681,6 +2695,7 @@ server <- function(input, output, session) {
     }
   })
   mainplotOut <- reactive({
+    anno_data <-anno_data()
     if (input$MainDownSelectCurrent == "Current") {
       if (input$MainFigDownChoice == "heatmap") {
         p <- UserHeatmap()
@@ -2691,13 +2706,107 @@ server <- function(input, output, session) {
     #current close  
     } else {
       #need to grab sig data first
+      plotList <- list()
       for (i in input$DownTestMat) {
         if (input$MainFigDownChoice == "heatmap" && input$HMAllorSig == "Sig") {
           #heatmaps here
-          print("Heatmaps") 
+          d1 <- HMPlotData()[i]
+          d1 <- data.frame(d1)
+          print(i)
+          print("This is d1")
+          print(head(d1))
+          if (input$HMdata == "averages") {
+            colnames(d1) <- anno_data$annotation
+            d2 <- sapply(split.default(d1, names(d1)), rowSums, na.rm = TRUE)
+          } else {
+            colnames(d1) <- anno_data$axisLabels
+            d2 <- d1
+          }
+
+          p <- pheatmap(d2, color = brewer.pal(input$HMColChoice, 
+                                               n = input$HMcolScale),
+                        border_color = input$HMborderCol,
+                        fontsize_col = input$HMColFontSize,
+                        fontsize_row = input$HMRowFontSize,
+                        angle_col = input$HMcolAngle,
+                        cluster_cols = input$HMclustCols,
+                        cluster_rows = input$HMclustRows,
+                        clustering_method = input$HMClustMethod,
+                        show_colnames = input$HMDispCol,
+                        show_rownames = input$HMDispRow, 
+                        treeheight_col = input$HMColTreeHeight,
+                        treeheight_row = input$HMColTreeHeight)
+          
+          plotList[[i]] = p
         } else {
           #volcano stuff here
           print("Volcs")
+          print(i)
+          print(volcPlotData())
+          d <- volcPlotData()[[i]]
+          print(head(d))
+          #volcSigLabel <- volcSigLabel()
+          d.down = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize < (input$UserFCCutoff * -1) )
+          d.up = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize > input$UserFCCutoff )
+          p <- ggplot(d, aes(x=EffectSize, y=-log10(pValue), fill = sig)) +
+            xlab("log2 fold change") + ylab("-log10 p-value") + labs(fill = NULL) +
+            ggtitle(label = input$volcTitle) +
+            theme_classic(base_size = 14) +
+            geom_point(pch = 21, colour = "black", alpha = input$volcAlphaChannel, size = input$volcPlotPointSize) +
+            scale_fill_manual(values=c("Non significant" = input$volcNS,
+                                       "Downregulated" = input$volcDown, 
+                                       "Upregulated" = input$volcUp)) +
+            theme(legend.position = input$volcLegendPostition,
+                  plot.title = element_text(face  = input$VolcTitleFace,
+                                            hjust = input$volcTitlePos))
+          
+          if (input$volcSigLabels == "Upregulated" || input$volcSigLabels == "Downregulated") {
+            p <- p + geom_text_repel(aes(label = d$GeneName.y), show.legend = FALSE)
+          }
+          
+          if (input$volcSigLabels == "Both") {
+            p <- p + geom_text_repel(aes(label = d$GeneNamedown), show.legend = FALSE) +
+              geom_text_repel(aes(label = d$GeneNameup), show.legend = FALSE)
+          }
+          
+          
+          
+          if (input$volcFeatures == "Lines") {
+            p <- p +  geom_vline(aes(xintercept = (input$UserFCCutoff*-1)),
+                                 lty = input$volcLinesType, 
+                                 colour = input$volcDown,
+                                 lwd=input$volcLinesLWD) +
+              geom_vline(aes(xintercept = input$UserFCCutoff), 
+                         lty = input$volcLinesType, colour =input$volcUp, 
+                         lwd=input$volcLinesLWD) 
+          }
+          
+          if (input$volcFeatures == "Counts") {
+            p <- p + geom_text(aes(x = input$volcXdown, y= input$volcYdown, label=d.down)) +
+              geom_text(aes(x = input$volcXup, y= input$volcYup, label=d.up))
+          }
+          
+          if (input$volcFeatures == "Both") {
+            p <- p + geom_vline(aes(xintercept = (input$UserFCCutoff*-1)),
+                                lty = input$volcLinesType, 
+                                colour = input$volcDown,
+                                lwd=input$volcLinesLWD) +
+              geom_vline(aes(xintercept = input$UserFCCutoff), 
+                         lty = input$volcLinesType, colour =input$volcUp, 
+                         lwd=input$volcLinesLWD) + 
+              geom_text(aes(x = input$volcXdown, 
+                            y=input$volcYdown, 
+                            label=d.down)) +
+              geom_text(aes(x = input$volcXup, 
+                            y= input$volcYup, 
+                            label=d.up))
+          } 
+          
+          if (input$volcFeatures == "None") {
+            p <- p
+          }
+          
+          plotList[[i]] = p
         }  #volcano if out
       } # for loop close
       return(plotList)
@@ -2752,27 +2861,29 @@ server <- function(input, output, session) {
         files <- NULL;
         withProgress("Saving plots", value = 0, {
           for (i in 1:length(mainplotOut())) {
-            print(i)
             if (input$MainFigDownChoice == "heatmap") {
+              print(i)
               FileName <- paste("Heatmap-",
-                                names(mainplotOut()[[i]]), 
+                                names(mainplotOut()[i]), 
                                 ".", input$mainFigDownType,
                                 sep = "")
             } else {
               FileName <- paste("Volcano-",
-                                i, 
+                                mainplotOut()[i], 
                                 ".", input$mainFigDownType,
                                 sep = "")
             }
+            
             ggsave(filename = FileName,
-                   plot = mainplotOut()[[i]],
+                   plot = mainplotOut()[i],
                    device = isolate(input$mainFigDownType),
                    dpi = isolate(input$mainFigRes))
             
-            incProgress(1/length(mainplotOut()), 
-                        detail = paste("Adding plot:", i, sep = " "))
             
             files <- c(FileName, files)
+            
+            incProgress(1/length(input$DownTestMat), 
+                        detail = paste("Adding plot:", i, sep = " "))
           } #for close
         }) #with progress close
         zip(file, files)
