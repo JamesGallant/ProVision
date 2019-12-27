@@ -4,7 +4,7 @@
 #Copyright 2019
 #To do:images need to be png format for web
 #Font sizes tab for main images
-#multiplot downloaders for main
+#multidownlaoder for volcs and ?heat has format issues
 #Libraries we need
 require(shinydashboard)
 require(shiny)
@@ -2040,6 +2040,7 @@ server <- function(input, output, session) {
   
   volcPlot <- reactive({
     if (input$generateVolcs > 0) {
+      #plotList <- list()
       d <- volcPlotData()[[volcCycler$counter]]
       #volcSigLabel <- volcSigLabel()
       d.down = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize < (input$UserFCCutoff * -1) )
@@ -2636,7 +2637,7 @@ server <- function(input, output, session) {
             incProgress(1/length(scatter_user()), detail = paste("Adding plot:", i, sep = " "))
           }
         })
-       
+        
         zip(file, files)
       }
     }
@@ -2703,7 +2704,7 @@ server <- function(input, output, session) {
         p <- volcPlot()
       }
       return(p)
-    #current close  
+      #current close  
     } else {
       #need to grab sig data first
       plotList <- list()
@@ -2711,10 +2712,7 @@ server <- function(input, output, session) {
         if (input$MainFigDownChoice == "heatmap" && input$HMAllorSig == "Sig") {
           #heatmaps here
           d1 <- HMPlotData()[i]
-          d1 <- data.frame(d1)
-          print(i)
-          print("This is d1")
-          print(head(d1))
+          d1 <- as.data.frame(d1)
           if (input$HMdata == "averages") {
             colnames(d1) <- anno_data$annotation
             d2 <- sapply(split.default(d1, names(d1)), rowSums, na.rm = TRUE)
@@ -2722,7 +2720,7 @@ server <- function(input, output, session) {
             colnames(d1) <- anno_data$axisLabels
             d2 <- d1
           }
-
+          
           p <- pheatmap(d2, color = brewer.pal(input$HMColChoice, 
                                                n = input$HMcolScale),
                         border_color = input$HMborderCol,
@@ -2742,7 +2740,6 @@ server <- function(input, output, session) {
           #volcano stuff here
           print("Volcs")
           print(i)
-          print(volcPlotData())
           d <- volcPlotData()[[i]]
           print(head(d))
           #volcSigLabel <- volcSigLabel()
@@ -2809,6 +2806,7 @@ server <- function(input, output, session) {
           plotList[[i]] = p
         }  #volcano if out
       } # for loop close
+      print(plotList)
       return(plotList)
     }
   })
@@ -2869,13 +2867,13 @@ server <- function(input, output, session) {
                                 sep = "")
             } else {
               FileName <- paste("Volcano-",
-                                mainplotOut()[i], 
+                                names(mainplotOut()[i]), 
                                 ".", input$mainFigDownType,
                                 sep = "")
             }
             
             ggsave(filename = FileName,
-                   plot = mainplotOut()[i],
+                   plot = mainplotOut()[[i]],
                    device = isolate(input$mainFigDownType),
                    dpi = isolate(input$mainFigRes))
             
