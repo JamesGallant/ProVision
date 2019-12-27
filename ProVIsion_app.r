@@ -616,10 +616,16 @@ ui <- dashboardPage(
                                       ),
                                       menuItem(text = "Downloads",
                                                icon = icon("download"),
+                                               radioButtons(inputId = "MainDownSelectCurrent",
+                                                            label = "Choose download option",
+                                                            choices = c("Current", "Multiple"),
+                                                            selected = "Current",
+                                                            inline = TRUE),
                                                radioButtons(inputId = "MainFigDownChoice",
                                                             label = "Download:",
                                                             choices = c("volcano", "heatmap"),
                                                             selected = "volcano", inline = TRUE),
+                                               uiOutput("CompPicker"),
                                                textInput(inputId = "mainFigDownTitle",
                                                          label = "file name",
                                                          placeholder = "Current comparison"),
@@ -1837,6 +1843,7 @@ server <- function(input, output, session) {
       
       fit2 <- contrasts.fit(fit, cont.matrix)
       fit2 <- eBayes(fit2)
+      print(head(fit2$coefficients))
       return(fit2)
       
     } else {
@@ -2659,37 +2666,75 @@ server <- function(input, output, session) {
     }
   )
   #main figures
-  mainplotOut <- reactive({
-    if (input$MainFigDownChoice == "heatmap") {
-      p <- UserHeatmap()
-    } else {
-      p <- volcPlot()
+  
+  output$CompPicker <- renderUI({
+    if (input$MainDownSelectCurrent == "Multiple") {
+      pickerInput(inputId = "DownTestMat", 
+                  label = "Choose conditions to download",
+                  choices = input$hypoTestMat, 
+                  multiple = TRUE, 
+                  selected = input$hypoTestMat,
+                  options = list(`actions-box` = TRUE, 
+                                 `selected-text-format` = "count > 0"), choicesOpt = list(
+                                   style = rep(("color: black;"),length(input$hypoTestMat)))
+      )
     }
-    return(p)
+  })
+  mainplotOut <- reactive({
+    if (input$MainDownSelectCurrent == "Current") {
+      if (input$MainFigDownChoice == "heatmap") {
+        p <- UserHeatmap()
+      } else {
+        p <- volcPlot()
+      }
+      return(p)
+    #current close  
+    } else {
+      #need to grab sig data first
+      for (i in input$DownTestMat) {
+        if (input$MainFigDownChoice == "heatmap" && input$HMAllorSig == "Sig") {
+          #heatmaps here
+          print("Heatmaps") 
+        } else {
+          #volcano stuff here
+          print("Volcs")
+        }  #volcano if out
+      } # for loop close
+      return(plotList)
+    }
   })
   
   mainFileName <- reactive({
-    if (input$MainFigDownChoice == "heatmap") {
-      if (input$mainFigDownTitle == "") {
-        n <- paste("Heatmap-", input$hypoTestMat[HMCycler$counter], ".", input$mainFigDownType,
-                   sep = "")
+    if (input$MainDownSelectCurrent == "Current") {
+      if (input$MainFigDownChoice == "heatmap") {
+        if (input$mainFigDownTitle == "") {
+          n <- paste("Heatmap-", input$hypoTestMat[HMCycler$counter], ".", input$mainFigDownType,
+                     sep = "")
+        } else {
+          
+          n <- paste("Heatmap-", input$mainFigDownTitle, ".", input$mainFigDownType,
+                     sep = "")
+        }
       } else {
-        
-        n <- paste("Heatmap-", input$mainFigDownTitle, ".", input$mainFigDownType,
-                   sep = "")
+        if (input$mainFigDownTitle == "") {
+          
+          n <- paste("Volcano-", input$hypoTestMat[volcCycler$counter], ".", input$mainFigDownType,
+                     sep = "")
+        } else {
+          
+          n <- paste("Volcano-", input$mainFigDownTitle, ".", input$mainFigDownType,
+                     sep = "")
+        }
       }
+      #current close
     } else {
-      if (input$mainFigDownTitle == "") {
-        
-        n <- paste("Volcano-", input$hypoTestMat[volcCycler$counter], ".", input$mainFigDownType,
-                   sep = "")
+      if (input$MainFigDownChoice == "heatmap") {
+        n <- paste(Sys.Date(), "-", "Heatmaps.zip", sep = "")
       } else {
-        
-        n <- paste("Volcano-", input$mainFigDownTitle, ".", input$mainFigDownType,
-                   sep = "")
+        n <- paste(Sys.Date(), "-", "Volcanos.zip", sep = "")
       }
-      
     }
+    
     return(n)
   })
   
@@ -2697,10 +2742,41 @@ server <- function(input, output, session) {
     #getting input is not working for filename
     filename = function() { mainFileName() },
     content = function(file) {
-      ggsave(file,
-             plot = mainplotOut(),
-             device = isolate(input$mainFigDownType),
-             dpi = isolate(input$mainFigRes))
+      if (input$MainDownSelectCurrent == "Current") {
+        ggsave(file,
+               plot = mainplotOut(),
+               device = isolate(input$mainFigDownType),
+               dpi = isolate(input$mainFigRes))
+        
+      } else{
+        files <- NULL;
+        withProgress("Saving plots", value = 0, {
+          for (i in 1:length(mainplotOut())) {
+            print(i)
+            if (input$MainFigDownChoice == "heatmap") {
+              FileName <- paste("Heatmap-",
+                                names(mainplotOut()[[i]]), 
+                                ".", input$mainFigDownType,
+                                sep = "")
+            } else {
+              FileName <- paste("Volcano-",
+                                i, 
+                                ".", input$mainFigDownType,
+                                sep = "")
+            }
+            ggsave(filename = FileName,
+                   plot = mainplotOut()[[i]],
+                   device = isolate(input$mainFigDownType),
+                   dpi = isolate(input$mainFigRes))
+            
+            incProgress(1/length(mainplotOut()), 
+                        detail = paste("Adding plot:", i, sep = " "))
+            
+            files <- c(FileName, files)
+          } #for close
+        }) #with progress close
+        zip(file, files)
+      }
     }
   )
   
