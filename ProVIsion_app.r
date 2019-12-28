@@ -614,18 +614,8 @@ ui <- dashboardPage(
                                                                       style = rep(("color: black;"),7)))
                                                )
                                       ),
-                                      menuItem(text = "Downloads",
+                                      menuItem(text = "Download options",
                                                icon = icon("download"),
-                                               radioButtons(inputId = "MainDownSelectCurrent",
-                                                            label = "Choose download option",
-                                                            choices = c("Current", "Multiple"),
-                                                            selected = "Current",
-                                                            inline = TRUE),
-                                               radioButtons(inputId = "MainFigDownChoice",
-                                                            label = "Download:",
-                                                            choices = c("volcano", "heatmap"),
-                                                            selected = "volcano", inline = TRUE),
-                                               uiOutput("CompPicker"),
                                                textInput(inputId = "mainFigDownTitle",
                                                          label = "file name",
                                                          placeholder = "Current comparison"),
@@ -639,10 +629,7 @@ ui <- dashboardPage(
                                                            choices = c("High" = "retina",
                                                                        "Medium" = "print",
                                                                        "low" = "screen"),
-                                                           selected = "print"),
-                                               downloadButton(outputId = "MainFigDownload", 
-                                                              label = "download", 
-                                                              style="display: block; margin: 0 auto; width: 200px;color: black;")))
+                                                           selected = "print")))
                    ), #figures close
                    #about us panel
                    conditionalPanel(condition = "input.main_tabs == 'AboutUs'",
@@ -897,6 +884,22 @@ ui <- dashboardPage(
                                                                                                "dotted", "dotdash", 
                                                                                                "longdash", "twodash"),
                                                                                    selected = "longdash", inline = TRUE),
+                                                                      h4(tags$b("Font sizes")),
+                                                                      fluidRow(column(4,
+                                                                                      numericInput(inputId = "VolcXSize",
+                                                                                                   label = "X-axis",
+                                                                                                   min = 0, max = 30, step = 0.5,
+                                                                                                   value = 12)),
+                                                                               column(4,
+                                                                                      numericInput(inputId = "VolcYSize",
+                                                                                                   label = "Y-axis",
+                                                                                                   min = 0, max = 30, step = 0.5,
+                                                                                                   value = 12)),
+                                                                               column(4,
+                                                                                      numericInput(inputId = "VolcTitleSize",
+                                                                                                   label = "Plot title",
+                                                                                                   min = 0, max = 30, step = 0.5,
+                                                                                                   value = 15))),
                                                                       h4(tags$b("Control position of significant counts:")),
                                                                       br(),
                                                                       fluidRow(column(4,
@@ -916,12 +919,16 @@ ui <- dashboardPage(
                                                                                                    label = "Upregulated y position",
                                                                                                    value = 10)))
                                                        ),
-                                                       plotOutput("volcplotOut")
+                                                       plotOutput("volcplotOut"),
+                                                       downloadButton(outputId = "VolcDownloader", 
+                                                                      label = "Download Volcano plot",
+                                                                      style="color: black;")
                                        ),
                                        column(6,
                                               dropdownButton(circle = TRUE,status = "primary", tooltip = TRUE,
                                                              icon = icon("gears"),
                                                              label = "Click for more plotting options",
+                                                             h4(tags$b("Font sizes")),
                                                              fluidRow(column(4,
                                                                              numericInput(inputId = "HMColFontSize",
                                                                                           label = "Column font size",
@@ -941,7 +948,10 @@ ui <- dashboardPage(
                                                                          label = "Decrease row dendogram height",
                                                                          min = 0, max = 50, step = 2, value = 50)),
                                               tags$head(tags$style(".shiny-output-error{color: black;}")),
-                                              plotOutput("Heatmap")))
+                                              plotOutput("Heatmap"),
+                                              downloadButton(outputId = "HMDownloader",
+                                                             label = "Download Heatmap",
+                                                             style="color: black;")))
                                      ) #fluidpage close
                             ),#Figs close
                             #About us tab
@@ -2055,7 +2065,10 @@ server <- function(input, output, session) {
                                    "Upregulated" = input$volcUp)) +
         theme(legend.position = input$volcLegendPostition,
               plot.title = element_text(face  = input$VolcTitleFace,
-                                        hjust = input$volcTitlePos))
+                                        hjust = input$volcTitlePos,
+                                        size = input$VolcTitleSize),
+              axis.title.x = element_text(size = input$VolcXSize),
+              axis.title.y = element_text(size = input$VolcYSize))
       
       if (input$volcSigLabels == "Upregulated" || input$volcSigLabels == "Downregulated") {
         p <- p + geom_text_repel(aes(label = d$GeneName.y), show.legend = FALSE)
@@ -2336,7 +2349,14 @@ server <- function(input, output, session) {
     
   })
   
-  output$Heatmap <- renderPlot(UserHeatmap())
+  output$Heatmap <- renderPlot({
+    if (!is.null(input$user_file)) {
+      UserHeatmap()
+    } else {
+      return(NULL)
+    }
+   
+    })
   
   ##########data handling download##########
   #processed data
@@ -2526,11 +2546,11 @@ server <- function(input, output, session) {
     if (input$normFigDownChoice == "Current") {
       p <- NormalityPlot()[Counter$normcounter]
       axisTitleList <- as.character(unlist(p[[1]][["labels"]]))
-      axisTitle <- paste(axisTitleList[2])
+      print(axisTitleList)
       
       if (input$normPlotChoice == "qqPlot") {
         name <- paste("qqPlot-", 
-                      axisTitle, ".", 
+                      axisTitleList[3], ".", 
                       input$normFigDownType,
                       sep = "")
       } else {
@@ -2568,7 +2588,7 @@ server <- function(input, output, session) {
             axisTitleList <- as.character(unlist(p[["labels"]]))
             
             if (input$normPlotChoice == "qqPlot") {
-              FileName <- paste("qqPlot-", axisTitleList[2], ".", 
+              FileName <- paste("qqPlot-", axisTitleList[3], ".", 
                                 input$normFigDownType,
                                 sep = "")
             } else{
@@ -2680,215 +2700,55 @@ server <- function(input, output, session) {
              dpi = isolate(input$pcaFigRes))
     }
   )
-  #main figures
-  
-  output$CompPicker <- renderUI({
-    if (input$MainDownSelectCurrent == "Multiple") {
-      pickerInput(inputId = "DownTestMat", 
-                  label = "Choose conditions to download",
-                  choices = input$hypoTestMat, 
-                  multiple = TRUE, 
-                  selected = input$hypoTestMat,
-                  options = list(`actions-box` = TRUE, 
-                                 `selected-text-format` = "count > 0"), choicesOpt = list(
-                                   style = rep(("color: black;"),length(input$hypoTestMat)))
-      )
-    }
-  })
-  mainplotOut <- reactive({
-    anno_data <-anno_data()
-    if (input$MainDownSelectCurrent == "Current") {
-      if (input$MainFigDownChoice == "heatmap") {
-        p <- UserHeatmap()
-      } else {
-        p <- volcPlot()
-      }
-      return(p)
-      #current close  
+  #volcanos
+  volcFileName <- reactive({
+    if (input$mainFigDownTitle == "") {
+      
+      n <- paste("Volcano-", input$hypoTestMat[volcCycler$counter], ".", input$mainFigDownType,
+                 sep = "")
     } else {
-      #need to grab sig data first
-      plotList <- list()
-      for (i in input$DownTestMat) {
-        if (input$MainFigDownChoice == "heatmap" && input$HMAllorSig == "Sig") {
-          #heatmaps here
-          d1 <- HMPlotData()[i]
-          d1 <- as.data.frame(d1)
-          if (input$HMdata == "averages") {
-            colnames(d1) <- anno_data$annotation
-            d2 <- sapply(split.default(d1, names(d1)), rowSums, na.rm = TRUE)
-          } else {
-            colnames(d1) <- anno_data$axisLabels
-            d2 <- d1
-          }
-          
-          p <- pheatmap(d2, color = brewer.pal(input$HMColChoice, 
-                                               n = input$HMcolScale),
-                        border_color = input$HMborderCol,
-                        fontsize_col = input$HMColFontSize,
-                        fontsize_row = input$HMRowFontSize,
-                        angle_col = input$HMcolAngle,
-                        cluster_cols = input$HMclustCols,
-                        cluster_rows = input$HMclustRows,
-                        clustering_method = input$HMClustMethod,
-                        show_colnames = input$HMDispCol,
-                        show_rownames = input$HMDispRow, 
-                        treeheight_col = input$HMColTreeHeight,
-                        treeheight_row = input$HMColTreeHeight)
-          
-          plotList[[i]] = p
-        } else {
-          #volcano stuff here
-          print("Volcs")
-          print(i)
-          d <- volcPlotData()[[i]]
-          print(head(d))
-          #volcSigLabel <- volcSigLabel()
-          d.down = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize < (input$UserFCCutoff * -1) )
-          d.up = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize > input$UserFCCutoff )
-          p <- ggplot(d, aes(x=EffectSize, y=-log10(pValue), fill = sig)) +
-            xlab("log2 fold change") + ylab("-log10 p-value") + labs(fill = NULL) +
-            ggtitle(label = input$volcTitle) +
-            theme_classic(base_size = 14) +
-            geom_point(pch = 21, colour = "black", alpha = input$volcAlphaChannel, size = input$volcPlotPointSize) +
-            scale_fill_manual(values=c("Non significant" = input$volcNS,
-                                       "Downregulated" = input$volcDown, 
-                                       "Upregulated" = input$volcUp)) +
-            theme(legend.position = input$volcLegendPostition,
-                  plot.title = element_text(face  = input$VolcTitleFace,
-                                            hjust = input$volcTitlePos))
-          
-          if (input$volcSigLabels == "Upregulated" || input$volcSigLabels == "Downregulated") {
-            p <- p + geom_text_repel(aes(label = d$GeneName.y), show.legend = FALSE)
-          }
-          
-          if (input$volcSigLabels == "Both") {
-            p <- p + geom_text_repel(aes(label = d$GeneNamedown), show.legend = FALSE) +
-              geom_text_repel(aes(label = d$GeneNameup), show.legend = FALSE)
-          }
-          
-          
-          
-          if (input$volcFeatures == "Lines") {
-            p <- p +  geom_vline(aes(xintercept = (input$UserFCCutoff*-1)),
-                                 lty = input$volcLinesType, 
-                                 colour = input$volcDown,
-                                 lwd=input$volcLinesLWD) +
-              geom_vline(aes(xintercept = input$UserFCCutoff), 
-                         lty = input$volcLinesType, colour =input$volcUp, 
-                         lwd=input$volcLinesLWD) 
-          }
-          
-          if (input$volcFeatures == "Counts") {
-            p <- p + geom_text(aes(x = input$volcXdown, y= input$volcYdown, label=d.down)) +
-              geom_text(aes(x = input$volcXup, y= input$volcYup, label=d.up))
-          }
-          
-          if (input$volcFeatures == "Both") {
-            p <- p + geom_vline(aes(xintercept = (input$UserFCCutoff*-1)),
-                                lty = input$volcLinesType, 
-                                colour = input$volcDown,
-                                lwd=input$volcLinesLWD) +
-              geom_vline(aes(xintercept = input$UserFCCutoff), 
-                         lty = input$volcLinesType, colour =input$volcUp, 
-                         lwd=input$volcLinesLWD) + 
-              geom_text(aes(x = input$volcXdown, 
-                            y=input$volcYdown, 
-                            label=d.down)) +
-              geom_text(aes(x = input$volcXup, 
-                            y= input$volcYup, 
-                            label=d.up))
-          } 
-          
-          if (input$volcFeatures == "None") {
-            p <- p
-          }
-          
-          plotList[[i]] = p
-        }  #volcano if out
-      } # for loop close
-      print(plotList)
-      return(plotList)
-    }
-  })
-  
-  mainFileName <- reactive({
-    if (input$MainDownSelectCurrent == "Current") {
-      if (input$MainFigDownChoice == "heatmap") {
-        if (input$mainFigDownTitle == "") {
-          n <- paste("Heatmap-", input$hypoTestMat[HMCycler$counter], ".", input$mainFigDownType,
-                     sep = "")
-        } else {
-          
-          n <- paste("Heatmap-", input$mainFigDownTitle, ".", input$mainFigDownType,
-                     sep = "")
-        }
-      } else {
-        if (input$mainFigDownTitle == "") {
-          
-          n <- paste("Volcano-", input$hypoTestMat[volcCycler$counter], ".", input$mainFigDownType,
-                     sep = "")
-        } else {
-          
-          n <- paste("Volcano-", input$mainFigDownTitle, ".", input$mainFigDownType,
-                     sep = "")
-        }
-      }
-      #current close
-    } else {
-      if (input$MainFigDownChoice == "heatmap") {
-        n <- paste(Sys.Date(), "-", "Heatmaps.zip", sep = "")
-      } else {
-        n <- paste(Sys.Date(), "-", "Volcanos.zip", sep = "")
-      }
+      
+      n <- paste("Volcano-", input$mainFigDownTitle, ".", input$mainFigDownType,
+                 sep = "")
     }
     
     return(n)
   })
-  
-  output$MainFigDownload <- downloadHandler(
+  output$VolcDownloader <- downloadHandler(
     #getting input is not working for filename
-    filename = function() { mainFileName() },
+    filename = function() {volcFileName() },
     content = function(file) {
-      if (input$MainDownSelectCurrent == "Current") {
-        ggsave(file,
-               plot = mainplotOut(),
-               device = isolate(input$mainFigDownType),
-               dpi = isolate(input$mainFigRes))
-        
-      } else{
-        files <- NULL;
-        withProgress("Saving plots", value = 0, {
-          for (i in 1:length(mainplotOut())) {
-            if (input$MainFigDownChoice == "heatmap") {
-              print(i)
-              FileName <- paste("Heatmap-",
-                                names(mainplotOut()[i]), 
-                                ".", input$mainFigDownType,
-                                sep = "")
-            } else {
-              FileName <- paste("Volcano-",
-                                names(mainplotOut()[i]), 
-                                ".", input$mainFigDownType,
-                                sep = "")
-            }
-            
-            ggsave(filename = FileName,
-                   plot = mainplotOut()[[i]],
-                   device = isolate(input$mainFigDownType),
-                   dpi = isolate(input$mainFigRes))
-            
-            
-            files <- c(FileName, files)
-            
-            incProgress(1/length(input$DownTestMat), 
-                        detail = paste("Adding plot:", i, sep = " "))
-          } #for close
-        }) #with progress close
-        zip(file, files)
-      }
+      ggsave(file, 
+             plot = volcPlot(),
+             device = isolate(input$mainFigDownType),
+             dpi = isolate(input$mainFigRes))
     }
   )
   
+  #heatmap
+  heatmapFileName <- reactive({
+    if (input$mainFigDownTitle == "") {
+      n <- paste("Heatmap-", input$hypoTestMat[HMCycler$counter], ".", input$mainFigDownType,
+                 sep = "")
+    } else {
+      
+      n <- paste("Heatmap-", input$mainFigDownTitle, ".", input$mainFigDownType,
+                 sep = "")
+    }
+    return(n)
+  })
+  
+  output$HMDownloader <- downloadHandler(
+    #getting input is not working for filename
+    filename = function() {heatmapFileName() },
+    content = function(file) {
+      ggsave(file, 
+             plot = UserHeatmap(),
+             device = isolate(input$mainFigDownType),
+             dpi = isolate(input$mainFigRes))
+    }
+  )
+
   ###about us tab ###
   #emails
   observeEvent(input$send, {
