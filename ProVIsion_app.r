@@ -24,8 +24,6 @@ require(Hmisc)
 require(limma)
 require(ggrepel)
 require(pheatmap)
-require(shinyAce)
-require(mailR)
 require(xlsx)
 #starting cod e for the app
 
@@ -35,6 +33,31 @@ ui <- dashboardPage(
   dashboardHeader(title = "ProVision"),
   dashboardSidebar(useShinyjs(),
                    useSweetAlert(),
+                   #welcome side bar menu
+                   conditionalPanel(condition = "input.main_tabs == 'welcome'",
+                                    sidebarMenu(
+                                     #menuitems
+                                      radioButtons(inputId = "tutOptions",
+                                                   label = "choose tutorial options",
+                                                   choices = c("Quick start" = "quickStart",
+                                                               "Full" = "full"),
+                                                   selected = "quickStart"),
+                                      disabled(
+                                        radioButtons(inputId = "fullTutPages",
+                                                     label = "Load tutorial pages",
+                                                     choices = c("Getting started" = "gs",
+                                                                 "Data processing" = "dp",
+                                                                 "Quality metrics" = "qm",
+                                                                 "Statistics" = "stats",
+                                                                 "Main figures" = "mf",
+                                                                 "Export" = "exp"),
+                                                     selected = "gs")
+                                      ),
+                                      actionButton(inputId = "goTut",
+                                                   icon = icon("play-circle"),
+                                                   label = "Go",
+                                                   style = "width:200px")
+                                    )),
                    #data handling sidebar menu
                    conditionalPanel(condition = "input.main_tabs == 'data_handling'",
                                     sidebarMenu(
@@ -45,9 +68,10 @@ ui <- dashboardPage(
                                                          accept = c("text/csv",
                                                                     "text/comma-separated-value",
                                                                     ".txt")),
-                                               div(style = "text-align:center", "The proteinGroups file is located",
-                                                   br(), "in the 'txt' folder of",
-                                                   br(), "the maxQuant output files")),
+                                               radioButtons(inputId = "userQuants",
+                                                            label = "Choose quantification",
+                                                            choices = c("LFQ intensity" = "lfq",
+                                                                        "Intensity" = "intensity"))),
                                       #Filtering comes here
                                       menuItem("Filter and Transform", tabName = "file_filter",
                                                icon = icon("filter"),
@@ -58,18 +82,12 @@ ui <- dashboardPage(
                                                  slim = TRUE),
                                                uiOutput("addRemCols"),
                                                #filtering buttons
-                                               div(style = "text-align:center", "choose minimum unique peptides",
-                                                   br(), "default of 2 is chosen automatically"),
                                                numericInput(inputId = "user_unique_pep",
                                                             value = 2, 
-                                                            label = "Unique peptides",
+                                                            label = "Minimum unique peptides",
                                                             min = 1),
-                                               div(style="text-align:center", "Log transforms intensity data",
-                                                   br(), "This will make intenstiy data", 
-                                                   br(), "normally distributed and",
-                                                   br(), "is recommended for stats"),
                                                checkboxInput(inputId = "logTransform", 
-                                                             label = "Log2 transform", 
+                                                             label = "Log2 transform data", 
                                                              value = TRUE),
                                                #this activates the filtering process
                                                actionButton(inputId = "activate_filter",
@@ -90,7 +108,7 @@ ui <- dashboardPage(
                                                    br(), "rename your replicates with",
                                                    br(), "the same annotion.",
                                                    br(), "Example:"),
-                                               img(src = 'labelGroup.png', width = '100%'),
+                                               img(src = 'media/labelGroup.png', width = '100%'),
                                                div(style = "text-align:center", "once done renaming press",
                                                    br(), "submit to lock in the annotation"),
                                                actionButton(inputId = "submit_anno",
@@ -634,12 +652,6 @@ ui <- dashboardPage(
                    #about us panel
                    conditionalPanel(condition = "input.main_tabs == 'AboutUs'",
                                     sidebarMenu(
-                                      menuItem(text = "Contact us",
-                                               icon = icon("envelope"),
-                                               textInput(inputId = "UserEmail", "From:", value="from@gmail.com"),
-                                               textInput("to", "To:", value="to@gmail.com"),
-                                               textInput(inputId = "Usersubject", "Subject:", value=""),
-                                               actionButton("send", "Send mail"))
                                       
                                     ) #sidebar close
                                     
@@ -651,7 +663,8 @@ ui <- dashboardPage(
                             #welcome tab/about tab
                             tabPanel(title = "Welcome",
                                      value = "welcome",
-                                     icon = icon("door-open")),
+                                     icon = icon("door-open"),
+                                     htmlOutput("WelcomeDocs")),
                             #data handling tab
                             tabPanel(title = "Data handling",
                                      value = "data_handling",
@@ -958,16 +971,9 @@ ui <- dashboardPage(
                             tabPanel(title = "About us",
                                      value = "AboutUs",
                                      icon = icon("user-tie"),
-                                     fluidPage(
-                                       fluidRow(
-                                         column(6,
-                                                aceEditor(
-                                                  outputId = "Usermessgae",
-                                                  value = "your message"
-                                                ))
-                                       )
-                                     )
-                            ))
+                                     includeHTML("www/HTML/about.html")
+                            )
+                          )
                 
   )#Body close
 ) #user interface close
@@ -976,6 +982,53 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   ######Upload limit#####
   options(shiny.maxRequestSize=30*1024^2)
+  ######Welcome tab######
+  
+
+  
+  tab1Counters <- reactiveValues(ClickCounter = 0)
+  
+  observeEvent(input$goTut, {
+    tab1Counters$ClickCounter <- tab1Counters$ClickCounter + 1 
+  })
+  
+  observeEvent(input$main_tabs != 'welcome', {
+    tab1Counters$ClickCounter = 0
+  })
+  
+  observe({
+    if (input$tutOptions == "full") {
+      enable("fullTutPages")
+    } else {
+      disable("fullTutPages")
+    }
+  })
+  HTMLdata <- reactive({
+    #observe events
+   if (tab1Counters$ClickCounter == 0) {
+     includeHTML("www/HTML/Welcome.html")
+   } else if (input$tutOptions == "quickStart") {
+     includeHTML("www/HTML/quickstart.html")
+   } else if (input$tutOptions == "full" & input$fullTutPages == "gs") {
+     includeHTML("www/HTML/gettingStarted.html")
+   } else if (input$tutOptions == "full" & input$fullTutPages == "dp") {
+     includeHTML("www/HTML/dataProcessing.html")
+   } else if (input$tutOptions == "full" & input$fullTutPages == "qm") {
+     includeHTML("www/HTML/qc.html")
+   } else if (input$tutOptions == "full" & input$fullTutPages == "stats") {
+     includeHTML("www/HTML/stats.html")
+   } else if (input$tutOptions == "full" & input$fullTutPages == "mf") {
+     includeHTML("www/HTML/mainFigs.html")
+   } else if (input$tutOptions == "full" & input$fullTutPages == "exp") {
+     includeHTML("www/HTML/export.html")
+   } else {
+     return(NULL)
+   }
+  })
+  
+  output$WelcomeDocs <- renderUI({
+    HTMLdata()
+  })
   ###### DATA INPUT #####
   file_upload <- reactive({
     data <- read.csv(input$user_file$datapath, 
@@ -983,13 +1036,28 @@ server <- function(input, output, session) {
                      colClasses = "character",
                      sep = "\t",
                      header = TRUE)
-    return(data)
+    intensity.names.LFQ = grep("^LFQ.intensity", names(data), value = TRUE)
+    intensity.names.noLFQ = grep("^Intensity", names(data), value = TRUE)
+    if (identical(intensity.names.noLFQ, character(0)) || identical(intensity.names.LFQ, character(0))) {
+      sendSweetAlert(session,
+                     title = "File upload error",
+                     text= "Is this the proteinGroups.txt file?",
+                     type = "error")
+    } else {
+      return(data)
+    }
+    
   })
-  
+
   colPickData <- reactive({
     if (!is.null(input$user_file)) {
       df <- file_upload()
-      intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
+      
+      if (input$userQuants == "lfq") {
+        intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
+      } else {
+        intensity.names = grep("^Intensity.", names(df), value = TRUE)
+      }
       return(intensity.names)
     }
   })
@@ -1113,7 +1181,6 @@ server <- function(input, output, session) {
   processed_data <- reactive({
     if (input$activate_filter > 0) {
       raw <- file_upload()
-      
       uniquePep <- isolate(input$user_unique_pep)
       logTrans <- isolate(input$logTransform)
       
@@ -1128,7 +1195,11 @@ server <- function(input, output, session) {
       if (input$unlockCols == TRUE) {
         intensity.names = input$RemCols
       } else {
-        intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
+        if (input$userQuants == "lfq") {
+          intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
+        } else {
+          intensity.names = grep("^Intensity", names(df), value = TRUE)
+        }
       }
       # Cast as numeric
       df[intensity.names] = sapply(df[intensity.names], as.numeric)
@@ -1163,7 +1234,12 @@ server <- function(input, output, session) {
       #get the uniprot ID
       
       #rename cols
-      names(df2) = gsub(pattern = "LFQ.intensity.", replacement = "", x = names(df2))
+      if (input$userQuants == "lfq") {
+        names(df2) = gsub(pattern = "LFQ.intensity.", replacement = "", x = names(df2))
+      } else {
+        names(df2) = gsub(pattern = "Intensity.", replacement = "", x = names(df2))
+        df2$Intensity <- NULL 
+      }
       
       #rownames as IDs for later
       #df2 <- df2[1:nrow(df2)-1,]
@@ -2441,9 +2517,9 @@ server <- function(input, output, session) {
       if (input$SigDataDownName == "") {
         if (input$SigDataDownType == "xlsx") {
           
-          n = paste(Sys.Date(), "-", "Statistics", ".", "xlsx", sep = "")
+          n = paste(Sys.Date(), "-", "Statistics-",hypoTestMat[statsCycler$counter], ".", "xlsx", sep = "")
         } else {
-          n = paste(Sys.Date(), "-", "Statistics", ".", "txt", sep = "")
+          n = paste(Sys.Date(), "-", "Statistics-",hypoTestMat[statsCycler$counter], ".", "txt", sep = "")
         }
       } else {
         if (input$SigDataDownType == "xlsx") {
@@ -2546,7 +2622,6 @@ server <- function(input, output, session) {
     if (input$normFigDownChoice == "Current") {
       p <- NormalityPlot()[Counter$normcounter]
       axisTitleList <- as.character(unlist(p[[1]][["labels"]]))
-      print(axisTitleList)
       
       if (input$normPlotChoice == "qqPlot") {
         name <- paste("qqPlot-", 
@@ -2750,18 +2825,7 @@ server <- function(input, output, session) {
   )
 
   ###about us tab ###
-  #emails
-  observeEvent(input$send, {
-    send.mail(from = "jamesgallant17@gmail.com",
-              to = "skateanddestroy41@gmail.com",
-              subject = "Subject of the email",
-              body = "Body of the email",
-              smtp = list(host.name = "smtp.gmail.com", port = 465, 
-                          user.name = "jamesgallant17@gmail.com",            
-                          passwd = "Funkified", ssl = TRUE),
-              authenticate = TRUE,
-              send = TRUE)
-  })
+
   
 } #server close
 
