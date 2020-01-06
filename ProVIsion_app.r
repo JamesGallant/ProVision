@@ -24,6 +24,8 @@ require(Hmisc)
 require(limma)
 require(ggrepel)
 require(pheatmap)
+require(rJava)
+require(zip)
 require(xlsx)
 #starting cod e for the app
 
@@ -108,7 +110,7 @@ ui <- dashboardPage(
                                                    br(), "rename your replicates with",
                                                    br(), "the same annotion.",
                                                    br(), "Example:"),
-                                               img(src = 'media/labelGroup.png', width = '100%'),
+                                               img(src = 'media/annotations.png', width = '100%'),
                                                div(style = "text-align:center", "once done renaming press",
                                                    br(), "submit to lock in the annotation"),
                                                actionButton(inputId = "submit_anno",
@@ -2683,7 +2685,6 @@ server <- function(input, output, session) {
                         detail = paste("Adding plot:", i, sep = " "))
           }
         })
-        
         zip(file, files)
       }
     }
