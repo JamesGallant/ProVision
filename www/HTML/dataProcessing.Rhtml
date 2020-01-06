@@ -73,7 +73,7 @@ html { scroll-behavior: smooth; }
   padding-right:8%;
 }
 .vidBox {
-  background-color:white;
+  background-color:black;
   border-style: outset;
   border-radius:10px;
   border-color:#edeceb;
@@ -108,12 +108,8 @@ html { scroll-behavior: smooth; }
     </div>
   </div>
   <div class = "section1"> <!---top section --->
-    <div class="vidBox">
-       <video class="vidPos"width=75% height=90% controls>
-        <source src="../media/Test.mp4" type="video/mp4">
-        <source src="../media/Test.ogg" type="video/ogg">
-        Your browser does not support HTML5 video.
-      </video>
+   <div class="vidBox">
+      <img src="../media/vidTut.svg" style="width:100%; height:100%;">
     </div>
   </div><!---top section close --->
   <div class="section2">
@@ -126,7 +122,7 @@ html { scroll-behavior: smooth; }
       <p style="font-size:1.2em"> Transformation of the intensity data is done to satisfy the requirement for normally distributed data when performing parametric statistics.Also, having normally distributed data will help with imputation, which will be discussed later in this tutorial. Typically, intensity data is log normally distributed and to obtain a normal distribution the data is log transformed using base 2. This is chosen by default, however to see the effect of this step the log2 checkbox can be unclicked and the results can be viewed downstream. To restore the results, check the transformation box again and click the start filtering button.</p>
       
     <h3 id = "assignGroups"> Assigning groups </h3>
-      <p style="font-size:1.2em"><img src="../media/test.png" alt="groupAnnotation" style="width:170px;height:170px;margin-left:15px;float:right"> Assigning groups is how ProVision knows what to compare statistically and many other functions. It is thus of utmost importance to have this input done correctly, if for any reason the data is mislabeled in some way we recommend to re upload your data and start again. The ID column is your data extracted from MaxQuant proteinGroups.txt file. The annotation column must be changed to reflect relevant groups as depicted in the figure. Also, each group should have the same name, i.e. all replicates of control must be named "control" and all replicates of treatment must be named "treatment". This table has a third column called AxisLabels and these are simply the axisLabels that will be used on relevant positions. If you are happy with the names in the ID column the AxisLabels column does not need to be edited. If you do choose to edit this column make sure the names are unique, again see the example in the figure. It is possible to copy, paste and drag in the table similar to Microsoft excel. Because this part is so sensitive to the functionality of provision we lock in and confirm your submission and it cannot be changed within the same session. To change this you would need to reload the page. </p>
+      <p style="font-size:1.2em"><img src="../media/annotations.png" alt="groupAnnotation" style="width:300px;height:150px;margin-left:15px;float:right"> Assigning groups is how ProVision knows what to compare statistically and many other functions. It is thus of utmost importance to have this input done correctly, if for any reason the data is mislabeled in some way we recommend to re upload your data and start again. The ID column is your data extracted from MaxQuant proteinGroups.txt file. The annotation column must be changed to reflect relevant groups as depicted in the figure. Also, each group should have the same name, i.e. all replicates of control must be named "control" and all replicates of treatment must be named "treatment". This table has a third column called AxisLabels and these are simply the axisLabels that will be used on relevant positions. If you are happy with the names in the ID column the AxisLabels column does not need to be edited. If you do choose to edit this column make sure the names are unique, again see the example in the figure. It is possible to copy, paste and drag in the table similar to Microsoft excel. Because this part is so sensitive to the functionality of provision we lock in and confirm your submission and it cannot be changed within the same session. To change this you would need to reload the page. </p>
     <h3 id = "validVals"> Filter for valid values </h3>
       <p style="font-size:1.2em">Filtering for valid values simply means filtering for missing values, during log transformation these will be labelled as NA and thus register as non valid. These values can occur due to two main factors, <b>1:</b>absent across replicates or<b>2:</b>absent due to experimental conditions.</p>
       <p style="font-size:1.2em">Addressing the first case, it is completely possible that the spectra contributing to a specific protein is missed across different mass spec runs or different replicates of a condition. This does not mean that this protein is missing, it simply means that the mass spectrometer did not observe it in a specific run. To address we can choose to filter out proteins that were seen in at least twice in a total of three replicate runs. Thus we are confident that this protein exists yet allow for some lenience with the knowledge of how the mass spectrometer operates. changing the number to three (if you have three replicates) would only consider proteins that were observed in each replicate of a sample and thus be the strict case.</p>
