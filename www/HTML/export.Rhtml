@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>ProVision</title>
+</head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/Css/font-awesome.min.css">
+
+<!--CSS-->
+
+<style>
+html { scroll-behavior: smooth; } 
+.trueBody {
+  background:"white"
+}
+
+.mainNavHeader {
+  height:10vh;
+  background-color:#2b579e;
+  color:white;
+  border-style: outset;
+  border-radius:10px;
+  box-shadow: 3% 1% #888888;
+}
+
+.navList {
+  padding-top:2%;
+  font-size:1.2em;
+}
+.navList li {
+  display:inline;
+  padding:1%;
+}
+
+.navList li:hover {
+  background-color:#ebeced;
+  border-radius:10px;
+}
+
+.navList li a {
+  color:white;
+  text-decoration: none;
+}
+.navList li:hover a {
+  color:black;
+  text-decoration: none;
+}
+
+.trueHeader {
+  background:white;
+  border-style: outset;
+  border-radius:10px;
+  box-shadow: 3% 1% #888888;
+  display: flex;
+  flex-direction: row;
+}
+
+.headerBox {
+  margin: auto;
+  font-style:bold;
+  text-align:center;
+}
+
+.section2{
+  background-color:white;
+  border-style: outset;
+  text-align: justify;
+  text-justify: inter-word;
+  border-radius:10px;
+  border-color:#edeceb;
+  box-shadow: 3% 1% #888888;
+  padding-left:8%;
+  padding-right:8%;
+}
+.vidBox {
+  background-color:white;
+  border-style: outset;
+  border-radius:10px;
+  border-color:#edeceb;
+  box-shadow: 3% 1% #888888;
+  width:100%;
+  height:60vh;
+}
+
+.vidPos {
+  display:block;
+  margin-left:12%;
+  margin-top:2%;
+}
+
+
+</style>
+
+<body>
+<div class="trueBody">
+    <div class="mainNavHeader">
+    <ul class="navList" style="list-style:none;">
+      <li><a href="#general">General</a></li>
+      <li><a href="#tables">Export tables</a></li>
+      <li><a href="#figures">Export figures</a></li>
+    </ul>
+  </div>
+  <div class="trueHeader">
+    <div class="headerBox">
+      <h1>ProVision: Exporting</h1>
+    </div>
+  </div>
+  <div class = "section1"> <!---top section --->
+    <div class="vidBox">
+       <video class="vidPos"width=75% height=90% controls>
+        <source src="../media/Test.mp4" type="video/mp4">
+        <source src="../media/Test.ogg" type="video/ogg">
+        Your browser does not support HTML5 video.
+      </video>
+    </div>
+  </div><!---top section close --->
+  <div class="section2">
+    <h2 id = "general">General</h2>
+    <p style="font-size:1.2em">Exporting is important when using proVision, we do not save any data thus if the page is refreshed both your data and progress will be lost. Luckily the ProVision workflow analyses data fast and allows for exporting at any step of the workflow. All downloaded files will be present in your download folder.</p>
+    <h2 id = "tables">Exporting tables</h2>
+    <p style="font-size:1.2em">There are two main tables available for export, the processed data and the statistics. The processed data represents the steps taken during the initial data processing and export can be done at any step. The data table shown on screen represents the data as is, and this can be downloaded by accessing the download menu. The same principle applies for the statistics tables. Once the appropriate tweaks have been done the table that is displayed can be downloaded from the provided download menu. The statistics table can also be downloaded by using the built in data table functions instead of the side bar menu, however it will only download the amount of data displayed on screen, the default is 10.</p>
+    <p style="font-size:1.2em">A file name can be provided as a download option but is not necessary, if ommited the data processing file will be labelled with the date and "processedMQ" and the statistics file will be named with the date,"statistics" and the comparison. The default choice is an excel output, however a text file output can be done as well with the choice of various separators. This can be used if other programs that require specific deliminators will be used as a downstream analysis on the data.</p>
+    <h2 id = "Figures">Exporting figures</h2>
+    <p style="font-size:1.2em"> Exporting figures can be done by right clicking on the figure or using the download menu, is with the tables the download menu has more options for the download type. When there is more than one plot available, as with scatter plots, a download all option will be available. All the plots will be have the aesthetics chosen for the first plot and labeled with a unique identifier, usually this will be the axis labels. The exception is the main figures, as the aesthetics might not be transferable, these can only be downloaded one by one. However to optimize everything, changes to the file extensions can be made as required and downloaded using the button beneath the plot. Common file types and resolutions are available as well such as tiff, jpeg etc. The image resolution has three specific choices, low: 72 dpi, medium: 300 dpi, high: 320 dpi. Options for PDF export is available as well. Exporting as PDF saves the graphs and text as vectors, if further aesthetic changes and layouts will be done in third party software such as the Adobe collection then PDF is the optimal choice.  
+  <br>
+
+</div>
+</body>
+</html>

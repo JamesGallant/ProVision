@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>ProVision</title>
+</head>
+
+<!---CSS---->
+<style>
+ .background {
+ background:#c9c6c5;
+ margin:0;
+ padding:0;
+ }
+ .myHeader  {
+ background:#082033;
+ color:white;
+ height:40vh;
+ border-radius: 5px;
+ display: flex;
+ flex-direction: row;
+ }
+ .mySection1 {
+ background:black;
+ text-align:center;
+ font-family: "Times New Roman", Times, serif;
+ font-style:"bold";
+ font-size: 1.5em;
+ height:5vh;
+  border-radius: 10px;
+ }
+  .mySection2 {
+ background:white;
+ height:40vh;
+ display: flex;
+ flex-direction: row;
+ }
+ .graphContentBlock1 {
+ background:#082033;
+ margin: auto;
+ border-radius: 5px;
+ width:33.3%;
+ height:100%;
+ }
+ 
+.graphContentBlock2 {
+ background:#082033;
+ margin: auto;
+ border-radius: 5px;
+ border: 2px solid black;
+ border-style: outset;
+ width:33%;
+ height:100%;
+ }
+ 
+ /* The flip box container - set the width and height to whatever you want. We have added the border property to demonstrate that the flip itself goes out of the box on hover (remove perspective if you don't want the 3D effect */
+.flip-box {
+  background-color: transparent;
+  width:100%;
+  height: 100%;
+  border: 1px solid #f1f1f1;
+  perspective: 1000px; /* Remove this if you don't want the 3D effect */
+}
+
+/* This container is needed to position the front and back side */
+.flip-box-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 2s;
+  transform-style: preserve-3d;
+}
+
+/* Do an horizontal flip when you move the mouse over the flip box container */
+.flip-box:hover .flip-box-inner {
+  transform: rotateY(180deg);
+}
+
+/* Position the front and back side */
+.flip-box-front, .flip-box-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+}
+
+/* Style the front side (fallback if image is missing) */
+.flip-box-front {
+  background-color: #9fd1cb;
+  color: black;
+  border-radius:100%
+}
+
+/* Style the back side */
+.flip-box-back {
+  background-color: #9fd1cb;
+  color: white;
+  transform: rotateY(180deg);
+}
+ 
+</style>
+<body>
+<div class = "background" >
+  <div class="myHeader">
+    <div class="graphContentBlock1" >
+      <img src="../media/mainLeft2.png" style="width:100%; height:100%;" >
+    </div>
+    <div class="graphContentBlock1" >
+    </div>
+    <div class="graphContentBlock1" >
+      <img src="../media/mainRight.svg" style="width:100%; height:100%;" >
+    </div>
+  </div>
+  <div class= "mySection1"  style="color:white;" >
+    Analyse label free proteomics data in minutes 
+  </div>
+      <div class= "mySection2">
+        <div class =" graphContentBlock2" >
+            <div class="flip-box">
+              <div class="flip-box-inner">
+                <div class="flip-box-front">
+                  <img src="../media/Histo.png" style="width:100%; height:100%;">
+                </div>
+                <div class="flip-box-back">
+                   <img src="../media/Histo.gif" style="width:100%; height:100%;">
+              </div>
+            </div>
+          </div><!---Fliiping im1 close---->
+        </div>
+        <div class = "graphContentBlock2">
+          <div class="flip-box">
+              <div class="flip-box-inner">
+                <div class="flip-box-front">
+                  <img src="../media/PCA.png" style="width:100%; height:100%;">
+                </div>
+                <div class="flip-box-back">
+                   <img src="../media/PCA.gif" style="width:100%; height:100%;">
+              </div>
+            </div>
+          </div><!---Fliiping im1 close---->
+        </div>
+        <div class = "graphContentBlock2">
+           <div class="flip-box">
+              <div class="flip-box-inner">
+                <div class="flip-box-front">
+                  <img src="../media/Volcs.png" style="width:100%; height:100%;">
+                </div>
+                <div class="flip-box-back">
+                   <img src="../media/Volcs.gif" style="width:100%; height:100%;">
+              </div>
+            </div>
+          </div>
+      </div>
+    </div>
+  </div> <!---background close--->
+</body>
+</html>

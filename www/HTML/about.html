@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<style type="text/css">
+.inline {
+  background-color: #f7f7f7;
+  border:solid 1px #B0B0B0;
+}
+.error {
+	font-weight: bold;
+	color: #FF0000;
+}
+.warning {
+	font-weight: bold;
+}
+.message {
+	font-style: italic;
+}
+.source, .output, .warning, .error, .message {
+	padding: 0 1em;
+  border:solid 1px #F7F7F7;
+}
+.source {
+  background-color: #f5f5f5;
+}
+.left {
+  text-align: left;
+}
+.right {
+  text-align: right;
+}
+.center {
+  text-align: center;
+}
+.hl.num {
+  color: #AF0F91;
+}
+.hl.str {
+  color: #317ECC;
+}
+.hl.com {
+  color: #AD95AF;
+  font-style: italic;
+}
+.hl.opt {
+  color: #000000;
+}
+.hl.std {
+  color: #585858;
+}
+.hl.kwa {
+  color: #295F94;
+  font-weight: bold;
+}
+.hl.kwb {
+  color: #B05A65;
+}
+.hl.kwc {
+  color: #55aa55;
+}
+.hl.kwd {
+  color: #BC5A65;
+  font-weight: bold;
+}
+</style>
+<title>ProVision</title>
+</head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/Css/font-awesome.min.css">
+ <!---CSS--->
+ <style>
+ html { scroll-behavior: smooth; } 
+ .mainBody {
+ background:white;
+ }
+ 
+.mainHeader {
+  background:white;
+  border-style: outset;
+  border-radius:10px;
+  box-shadow: 3% 1% #888888;
+  text-align:center;
+}
+
+.mainContent {
+  background:white;
+  border-style: outset;
+  border-radius:10px;
+  box-shadow: 3% 1% #888888;
+  padding-left:1%;
+  text-justify: inter-word;
+  padding-left:8%;
+  padding-right:8%;
+}
+.bugReports {
+  background:white;
+  border-style: outset;
+  border-radius:10px;
+  box-shadow: 3% 1% #888888;
+  width:33%;
+  margin-left:33%;
+}
+.contactUs {
+  display: flex;
+  flex-direction: row;
+}
+
+.contactusBox {
+  background:white;
+  border-style: outset;
+  border-radius:10px;
+  box-shadow: 3% 1% #888888;
+  width:40%;
+  height:33%;
+  margin:auto;
+}
+</style>
+<body>
+<div class="mainBody" >
+  <div class = "mainHeader" >
+    <h1> Thank you for choosing ProVision </h1>
+  </div>
+  <div class="mainContent">
+    <h2> Our philosophy </h2>
+    <p style="font-size:1.2em">Proteomics is a powerful tool to estimate the global function of a biological system. The drawback is that this amount of data typically requires dedicated tools or knowledge in programming. To assist and speed up the decision making process and demystify the data analytics process we have developed this web application. The aim is to provide researchers with a fast way to analyse data in a intuitive manner without much knowledge required in programming, statistics or the proteomics data analysis pipeline. Furthermore the power of R is leveraged to provide high quality and beautiful graphs with deep levels of user control. Finally, we have further added flexibility within ProVision to alter certain parameters for those who wish to tweak and experiment with the various parameters.</p>
+    <h2> Contact us </h2>
+    <p style="font-size:1.2em">ProVision is created and maintained by James Gallant. Tiaan Heunis provided code and assisted in deciding the analytical steps. The work was supported by Samantha Sampson and Wilbert Bitter. </p>
+      <div class="bugReports">
+        <h3 style="text-align:center" > Report bugs or questions: </h>
+        <ul style="list-style:none;">
+          <li>
+          <i class="fab fa-github"></i><a href="https://github.com/JamesGallant/ProVision/issues" target="_blank"> Github issues</a>
+          </li>
+        </ul>
+      </div>
+      <br>
+      <div class="contactUs">
+        <div class="contactusBox">
+          <h3 style="text-align:center"> James Gallant</h3>
+          <ul style="list-style:none;">
+              <li>
+                <p>
+                <i class="fa fa-envelope-o"></i><a href="mailto:jamesgallant17@gmail.com?subject=ProvisionApp"> jamesgallant17@gmail.com</a>
+                </p>
+              </li>
+              <li>
+                <p>
+                <i class="fab fa-linkedin"></i><a href="https://www.linkedin.com/in/james-gallant-473a09118/" target="_blank"> linkedIn</a>
+                </p>
+              </li>
+              <li>
+                  <p>
+                  <i class="fab fa-github"></i><a href="https://github.com/JamesGallant" target="_blank"> Github</a>
+                  </p>
+              </li>
+               <li>
+                  <p>
+                  <i class="fab fa-researchgate"></i><a href="https://www.researchgate.net/profile/James_Gallant" target="_blank"> Research gate</a>
+                  </p>
+              </li>
+          </ul>
+        </div>
+        <div class="contactusBox">
+          <h3 style="text-align:center"> Tiaan Heunis</h3>
+        </div>
+      </div>
+    <h2> Credits </h2>
+    <p style="font-size:1.2em"> ProVsion would not be possible without the wonderful open source community and of course the team at <b>R, Rstudio and shiny </b>. Open source packages for building this shiny app include <b> shinydashboard, shinyJS, colourpicker </b> and <b>shinywidgets </b>. Data handling with <b> dplyr </b>, while plotting is done with <b> ggplot2</b>  or <b>pheatmap </b> both of which allow for the beautiful graphs. Finally a big thanks to <b> LIMMA </b> for their package in analyzing this type of data, be sure to check out their  <a href="https://doi.org/10.1093/nar/gkv007" target="_blank"> publication </a>. </p>
+    <h2> Licence </h2>
+    <h2> Privacy statement </h2>
+    <p style="font-size:1.2em"> We dont use cookies and we don't save your data in any way, shape or form. Even if we wanted to we can't because we have no database server. SQL databases cost money and we are scientists! </p>
+  </div>
+</div>
+</body>
+</html>
