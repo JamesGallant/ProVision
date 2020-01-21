@@ -39,31 +39,49 @@ ui <- dashboardPage(
                    conditionalPanel(condition = "input.main_tabs == 'welcome'",
                                     sidebarMenu(
                                      #menuitems
-                                      radioButtons(inputId = "tutOptions",
-                                                   label = "choose tutorial options",
-                                                   choices = c("Quick start" = "quickStart",
-                                                               "Full" = "full"),
-                                                   selected = "quickStart"),
-                                      disabled(
-                                        radioButtons(inputId = "fullTutPages",
-                                                     label = "Load tutorial pages",
-                                                     choices = c("Getting started" = "gs",
-                                                                 "Data processing" = "dp",
-                                                                 "Quality metrics" = "qm",
-                                                                 "Statistics" = "stats",
-                                                                 "Main figures" = "mf",
-                                                                 "Export" = "exp"),
-                                                     selected = "gs")
-                                      ),
-                                      actionButton(inputId = "goTut",
-                                                   icon = icon("play-circle"),
-                                                   label = "Go",
-                                                   style = "width:200px")
+                                      menuItem("Tutorials",startExpanded = TRUE,
+                                               radioButtons(inputId = "tutOptions",
+                                                            label = "choose tutorial options",
+                                                            choices = c("Quick start" = "quickStart",
+                                                                        "Full" = "full"),
+                                                            selected = "quickStart"),
+                                               disabled(
+                                                 radioButtons(inputId = "fullTutPages",
+                                                              label = "Load tutorial pages",
+                                                              choices = c("Getting started" = "gs",
+                                                                          "Data processing" = "dp",
+                                                                          "Quality metrics" = "qm",
+                                                                          "Statistics" = "stats",
+                                                                          "Main figures" = "mf",
+                                                                          "Export" = "exp"),
+                                                              selected = "gs")
+                                               ),
+                                               actionButton(inputId = "goTut",
+                                                            icon = icon("play-circle"),
+                                                            label = "Go",
+                                                            style = "width:200px")),
+                                      menuItem("Cookies", startExpanded = TRUE,
+                                               div(style="text-align:left; color=white;padding:5%;",
+                                                   tags$b("This site uses cookies see the",br(),
+                                                          "about us section for more ",br(),
+                                                          "information.", br(), br(),
+                                                          "Toggle these buttons
+                                                          to accept",br(),
+                                                          "or decline cookies.")),
+                                               radioButtons(inputId = "cookies",
+                                                            label = "Enable/Disable cookies",
+                                                            choices = c("Enable", "Disable"),
+                                                            selected = "Enable"),
+                                               actionButton(inputId = "cookieChoice",
+                                                            label = "go",
+                                                            width=200,
+                                                            icon = icon("play-circle"))
+                                               )
                                     )),
                    #data handling sidebar menu
                    conditionalPanel(condition = "input.main_tabs == 'data_handling'",
                                     sidebarMenu(
-                                      #this is where we handle file uploading
+                                      #this is where we handle file uploadinh
                                       menuItem("Upload your files", tabName = "file_upload", 
                                                icon = icon("upload"),
                                                fileInput("user_file", "Choose your file",
@@ -72,8 +90,15 @@ ui <- dashboardPage(
                                                                     ".txt")),
                                                radioButtons(inputId = "userQuants",
                                                             label = "Choose quantification",
-                                                            choices = c("LFQ intensity" = "lfq",
-                                                                        "Intensity" = "intensity"))),
+                                                            choices = c("Intensity" = "intensity",
+                                                                        "LFQ intensity" = "lfq",
+                                                                        "TMT tags" = "tmt"),
+                                                            selected = "lfq"),
+                                               uiOutput("TMTplexUI"),
+                                               actionButton(inputId = "fileReset",
+                                                            label = "Reset all data",
+                                                            width = 200,
+                                                            icon = icon("redo"))),
                                       #Filtering comes here
                                       menuItem("Filter and Transform", tabName = "file_filter",
                                                icon = icon("filter"),
@@ -91,6 +116,10 @@ ui <- dashboardPage(
                                                checkboxInput(inputId = "logTransform", 
                                                              label = "Log2 transform data", 
                                                              value = TRUE),
+                                               checkboxInput(inputId = "median_center",
+                                                             label = "Subtract the median",
+                                                             width = 200,
+                                                             value = FALSE),
                                                #this activates the filtering process
                                                actionButton(inputId = "activate_filter",
                                                             label = "Start filtering",
@@ -150,12 +179,7 @@ ui <- dashboardPage(
                                                                      value = 0.3),
                                                         numericInput(inputId = "imputeDS",
                                                                      label = "Select downshift", 
-                                                                     value = 1.8),
-                                                        checkboxInput(inputId = "median_center",
-                                                                      label = "Center the median",
-                                                                      width = 200,
-                                                                      value = FALSE)
-                                               ),
+                                                                     value = 1.8)),
                                                actionButton(inputId = "start_imputation",
                                                             label = "Start imputing",
                                                             width = 200,
@@ -661,6 +685,7 @@ ui <- dashboardPage(
   ), #sidebar close
   
   dashboardBody(useShinyjs(),
+                uiOutput("cookieRender"),
                 tabsetPanel(id = "main_tabs",
                             #welcome tab/about tab
                             tabPanel(title = "Welcome",
@@ -986,8 +1011,22 @@ server <- function(input, output, session) {
   options(shiny.maxRequestSize=30*1024^2)
   ######Welcome tab######
   
-
-  
+  ####privacy####
+  userCookies <- reactive({
+    if (input$cookieChoice == 0) {
+      return(NULL)
+    } else {
+      sendSweetAlert(session,
+                     title = "Preference logged",
+                     type = "success")
+      if (input$cookies == "Disable") {
+        return(NULL)
+      } else {
+        return(tags$head(includeHTML("googleanalytics.html")))
+      }
+    }
+  })
+  output$cookieRender <-  renderUI({userCookies()})
   tab1Counters <- reactiveValues(ClickCounter = 0)
   
   observeEvent(input$goTut, {
@@ -1008,7 +1047,7 @@ server <- function(input, output, session) {
   HTMLdata <- reactive({
     #observe events
    if (tab1Counters$ClickCounter == 0) {
-     includeHTML("www/HTML/Welcome.html")
+     includeHTML("www/HTML/welcome.html")
    } else if (input$tutOptions == "quickStart") {
      includeHTML("www/HTML/quickstart.html")
    } else if (input$tutOptions == "full" & input$fullTutPages == "gs") {
@@ -1038,27 +1077,37 @@ server <- function(input, output, session) {
                      colClasses = "character",
                      sep = "\t",
                      header = TRUE)
-    intensity.names.LFQ = grep("^LFQ.intensity", names(data), value = TRUE)
-    intensity.names.noLFQ = grep("^Intensity", names(data), value = TRUE)
-    if (identical(intensity.names.noLFQ, character(0)) || identical(intensity.names.LFQ, character(0))) {
-      sendSweetAlert(session,
-                     title = "File upload error",
-                     text= "Is this the proteinGroups.txt file?",
-                     type = "error")
-    } else {
-      return(data)
-    }
-    
+  
+    return(data)
   })
 
+  output$TMTplexUI <- renderUI({
+    if (input$userQuants == "tmt") {
+      radioButtons(inputId = "tmtPlex",
+                   label = "Choose TMT plex",
+                   choices = c("TMT Six plex" = 5,
+                               "TMT Ten plex" = 9,
+                               "TMT eleven plex" = 10),
+                   selected = 9)
+    }
+  })
   colPickData <- reactive({
     if (!is.null(input$user_file)) {
       df <- file_upload()
       
       if (input$userQuants == "lfq") {
         intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
-      } else {
+      } else if (input$userQuants == "intensity") {
         intensity.names = grep("^Intensity.", names(df), value = TRUE)
+      } else {
+        intensity.names = c()
+        for (i in 0:input$tmtPlex) {
+          print(i)
+          pat <- paste0("^Reporter.intensity.corrected.", i, "$")
+          tmt <- grep(pattern = pat, names(df), value = TRUE)
+          intensity.names <- c(intensity.names, tmt)
+        }
+        
       }
       return(intensity.names)
     }
@@ -1078,6 +1127,7 @@ server <- function(input, output, session) {
     } else {return(NULL)}
   })
   
+
   #### Data handling ################################################################
   #functions
   #filter valid values
@@ -1116,19 +1166,12 @@ server <- function(input, output, session) {
     #x$GeneNames <- gene.names
     return(x)
   }
+  
   #impute by normal distro
   imputeFunc = function(x, width, downshift, centerMedian) {
     kol.name <- as.data.frame(table(unlist(names(x))))
     kol.name <- as.character(kol.name$Var1)
     
-    if (centerMedian) {
-      x[, kol.name] = lapply(kol.name, function(i) {
-        LOG2 = x[[i]]
-        LOG2[!is.finite(LOG2)] = NA
-        gMedian = median(LOG2, na.rm = TRUE)
-        LOG2 - gMedian
-      })
-    }
     
     set.seed(1)
     x[kol.name] = lapply(kol.name,
@@ -1170,18 +1213,61 @@ server <- function(input, output, session) {
     if (input$EnableImputeControl == TRUE) {
       enable("imputeWidth")
       enable("imputeDS")
-      enable("median_center")
     } else {
       reset("imputeWidth")
       reset("imputeDS")
       reset("median_center")
       disable("imputeWidth")
       disable("imputeDS")
-      disable("median_center")
     }
   })
+  
+  #TMT needs subtraction of the median
+  observe({
+    if (input$userQuants == "tmt") {
+      updateCheckboxInput(session = session,
+                          inputId = "median_center",
+                          value = TRUE)
+    } else {
+      updateCheckboxInput(session = session,
+                          inputId = "median_center",
+                          value = FALSE)
+    }
+  })
+  # control data flow allows to ignore the cached data
+  dataControl = reactiveValues(activateFilter = 0,
+                               uploadState = NULL,
+                               filterValids = 0,
+                               imputation = 0,
+                               annoStart = 0,
+                               annoSubmit = 0)
+  
+  observeEvent(input$activate_filter, {
+   dataControl$activateFilter <- dataControl$activateFilter + 1
+  })
+  
+  observeEvent(input$user_file, {
+    dataControl$uploadState <- "uploaded"
+  })
+  
+  observeEvent(input$filter_valids, {
+    dataControl$filterValids <-  dataControl$filterValids + 1
+  })
+  
+  observeEvent(input$start_imputation, {
+    dataControl$imputation <-  dataControl$imputation + 1
+  })
+  
+  observeEvent(input$start_anno, {
+    dataControl$annoStart <-  dataControl$annoStart + 1
+  })
+  
+  observeEvent(input$submit_anno, {
+    dataControl$annoSubmit <-  dataControl$annoSubmit + 1
+  })
+  
   processed_data <- reactive({
-    if (input$activate_filter > 0) {
+    if (dataControl$activateFilter > 0) {
       raw <- file_upload()
       uniquePep <- isolate(input$user_unique_pep)
       logTrans <- isolate(input$logTransform)
@@ -1193,16 +1279,26 @@ server <- function(input, output, session) {
         filter(Only.identified.by.site != "+") 
       
       df <- subset(df, df$Unique.peptides > (uniquePep-1))
-      # Extract names of intensity columns
+      
+      # Extract names of quant columns
       if (input$unlockCols == TRUE) {
         intensity.names = input$RemCols
       } else {
         if (input$userQuants == "lfq") {
           intensity.names = grep("^LFQ.intensity", names(df), value = TRUE)
-        } else {
+        } else if (input$userQuants == "intensity") {
           intensity.names = grep("^Intensity", names(df), value = TRUE)
+        } else {
+          intensity.names = c()
+          for (i in 0:input$tmtPlex) {
+            print(i)
+            pat <- paste0("^Reporter.intensity.corrected.", i, "$")
+            tmt <- grep(pattern = pat, names(df), value = TRUE)
+            intensity.names <- c(intensity.names, tmt)
+          }
         }
       }
+      
       # Cast as numeric
       df[intensity.names] = sapply(df[intensity.names], as.numeric)
       
@@ -1211,26 +1307,37 @@ server <- function(input, output, session) {
         df[intensity.names] = log2(df[intensity.names])
         
       } 
+  
       
       #create new dataframe from LFQ intensities
       df2 <-  df[intensity.names]
       
+      
+      if (input$median_center == TRUE) {
+        df2 <- center_med(x = df2)
+      }
       #assign protein IDs from oringinal this will be majority prt IDs in the end
       df2$Protein.IDs <- df$Protein.IDs
       df2$Majority.protein.IDs <- df$Majority.protein.IDs
       
       #need to get everything before a ; character first
       #check for fasta col, if present use that
-      parseRule <- grepl(">", df$Fasta.headers)
+      parseRule <- grepl(">", df2$Fasta.headers)
       if (TRUE %in% parseRule ) {
-        fasta <- word(df$Fasta.headers, 1, sep = ";")
+        fasta <- word(df2$Fasta.headers, 1, sep = ";")
       } else {
-        fasta <- word(df2$Protein.IDs, 1, sep = ";")
+        fasta <- word(df2$Majority.protein.IDs, 1, sep = ";")
       }
       
-      df2$UniprotID <- str_extract(fasta,"(?<=\\|)(.+)(?=\\|)")
-      temp1_genename <- str_extract(fasta,"(?<=\\|)(.+)(?=\\_)")
-      df2$GeneNames <- sapply(strsplit(temp1_genename, "\\|"), "[", 2)
+      sanityRule <- grepl("\\|", fasta)
+      if (TRUE %in% sanityRule) {
+        df2$UniprotID <- str_extract(fasta,"(?<=\\|)(.+)(?=\\|)")
+        temp1_genename <- str_extract(fasta,"(?<=\\|)(.+)(?=\\_)")
+        df2$GeneNames <- sapply(strsplit(temp1_genename, "\\|"), "[", 2)
+      } else {
+        df2$UniprotID <- fasta
+        df2$GeneNames <- fasta
+      }
       
       
       #get the uniprot ID
@@ -1238,9 +1345,12 @@ server <- function(input, output, session) {
       #rename cols
       if (input$userQuants == "lfq") {
         names(df2) = gsub(pattern = "LFQ.intensity.", replacement = "", x = names(df2))
-      } else {
+      } else if (input$userQuants == "intensity") {
         names(df2) = gsub(pattern = "Intensity.", replacement = "", x = names(df2))
         df2$Intensity <- NULL 
+      } else {
+        names(df2) = gsub(pattern = "Reporter.intensity.corrected", replacement = "Reporter",
+                          x = names(df2))
       }
       
       #rownames as IDs for later
@@ -1254,7 +1364,7 @@ server <- function(input, output, session) {
       orig.col.names <- colnames(df2[names(df2) != "GeneNames"])
       
       
-      if (input$filter_valids > 0) {
+      if (dataControl$filterValids > 0) {
         x <- df2
         anno_data <- anno_data()
         #need to keep genenames indexed
@@ -1278,9 +1388,8 @@ server <- function(input, output, session) {
         dat2$geneNames <- NULL
         df2 <- dat2
         
-        if (input$start_imputation > 0) {
+        if (dataControl$imputation > 0) {
           #centering
-          center_dat <- isolate(input$median_center)
           impute_dat <- isolate(input$impute_choices)
           gene.names <- df2$GeneNames
           df2$GeneNames <- NULL
@@ -1288,8 +1397,7 @@ server <- function(input, output, session) {
           
           df2 <- imputeFunc(x = df2, 
                             width = input$imputeWidth,
-                            downshift = input$imputeDS,
-                            centerMedian = center_dat)
+                            downshift = input$imputeDS)
           anno_data <- anno_data()
           colnames(df2) <- anno_data$ID
           df2$GeneNames <- gene.names
@@ -1301,6 +1409,8 @@ server <- function(input, output, session) {
     }
     return(df2)
   })
+  
+ 
   ##### get df to display for user input ###
   #we will prompt for reps like this
   categorial_anno <- reactive({
@@ -1313,28 +1423,44 @@ server <- function(input, output, session) {
   })
   
   output$defineReps <- renderRHandsontable({
-    if (input$start_anno) {
+    if (dataControl$annoStart > 0) {
       categorial_anno <- categorial_anno()
       categorial_anno$ID <- as.character(categorial_anno$ID)
       categorial_anno$annotation <- as.character(categorial_anno$annotation)
       categorial_anno$axisLabels <- as.character(categorial_anno$axisLabels)
-      rhandsontable(categorial_anno) %>%
-        hot_col("ID", readOnly = T)
+      tab <- rhandsontable(categorial_anno) %>%
+          hot_col("ID", readOnly = T)
+      return(tab)
+    } else {
+      return(NULL)
     }
   })
   
   #get data from user
   #displays need to signal data is submitted
-  anno_data <- eventReactive(input$submit_anno, {
-    reps <- isolate(input$defineReps)
-    repsOut <- hot_to_r(reps)
-    return(repsOut)
+  anno_data <- reactive({
+    if (dataControl$annoSubmit > 0) {
+      reps <- isolate(input$defineReps)
+      repsOut <- hot_to_r(reps)
+      return(repsOut)
+    } else {
+      return(NULL)
+    }
   })
   
+  redundant <- function(x){
+    anno_data <- eventReactive(input$submit_anno, {
+      reps <- isolate(input$defineReps)
+      repsOut <- hot_to_r(reps)
+      return(repsOut)
+    })
+  }
   
   #This controls enabling and disabling anno button
+  
   observe({
-    if (input$submit_anno > 0) {
+    if (dataControl$annoSubmit > 0) {
+      print(dataControl$annoSubmit)
       sendSweetAlert(
         session = session,
         title = "Success",
@@ -1343,11 +1469,15 @@ server <- function(input, output, session) {
         closeOnClickOutside = TRUE,
         width = 400
       )
-      hide("defineReps")
+     # hide("defineReps")
       disable("submit_anno")
+    } else {
+     # show("defineReps")
+      enable("submit_anno")
     }
   })
   
+
   
   ######filter based on groups#####
   
@@ -1360,11 +1490,11 @@ server <- function(input, output, session) {
   output$user_data_in <-  DT::renderDataTable({
     
     #this is to remove error message in display
-    if (is.null(input$user_file)) {
+    if (is.null(dataControl$uploadState)) {
       return(NULL)
     } 
     
-    if (input$activate_filter == 0) {
+    if (dataControl$activateFilter == 0) {
       #first display
       datatable(file_upload(), options = list(searching = F,
                                               pageLength = 20,
@@ -1372,7 +1502,7 @@ server <- function(input, output, session) {
                                               scrollX = T,
                                               autoWidth = TRUE
       ))
-    } else if (input$activate_filter > 0) {
+    } else if (dataControl$activateFilter > 0) {
       datatable(processed_data(),  options = list(searching = TRUE,
                                                   pageLength = 20,
                                                   lengthMenu = c(5, 10, 15, 20), 
@@ -1409,7 +1539,7 @@ server <- function(input, output, session) {
   
   output$data_handling_info <- renderValueBox({
     #check if data is loaded
-    if (is.null(input$user_file)) {
+    if (is.null(dataControl$uploadState)) {
       infoBox(title = "Information",
               value = "Upload proteinGroups.txt file",
               icon = icon("info"),
@@ -1472,19 +1602,19 @@ server <- function(input, output, session) {
   #           numbers
   output$protein_ids_count <- renderValueBox({
     #Display unique peptides here
-    if (is.null(input$user_file)) {
+    if (is.null(dataControl$uploadState)) {
       valueBox(value = "No file loaded",
                subtitle = "Number of proteins",
                color = "aqua",
                icon = icon("list-ol"))
     } else {
-      if (input$activate_filter == 0) {
+      if (dataControl$activateFilter == 0) {
         valueBox(value = nrow(file_upload()),
                  subtitle = "Number of proteins",
                  color = "orange",
                  icon = icon("list-ol")) 
       } else {
-        if (input$activate_filter > 0) {
+        if (dataControl$activateFilter > 0) {
           valueBox(value = nrow(processed_data()),
                    subtitle = "Number of proteins",
                    color = "orange",
@@ -1497,13 +1627,13 @@ server <- function(input, output, session) {
   #valuebox 2: This will display contaminants and such
   output$contaminants_count <- renderValueBox({
     
-    if (is.null(input$user_file)) {
+    if (is.null(dataControl$uploadState)) {
       valueBox(value = "No file loaded",
                subtitle = "Potential errouneuos protein IDs",
                color = "aqua",
                icon = icon("exclamation-triangle"))
     } else {
-      if (input$activate_filter == 0) {
+      if (dataControl$activateFilter == 0) {
         rawFile <- file_upload()
         contam1 <- nrow(subset(rawFile, Potential.contaminant == "+"))
         contam2 <- nrow(subset(rawFile, Reverse == "+"))
@@ -1514,7 +1644,7 @@ server <- function(input, output, session) {
                  icon = icon("exclamation-triangle"),
                  color = "orange")
       } else {
-        if (input$activate_filter > 0) {
+        if (dataControl$activateFilter > 0) {
           valueBox(value = 0,
                    subtitle = "Potential errouneuos protein IDs",
                    icon = icon("exclamation-triangle"),
@@ -1525,8 +1655,16 @@ server <- function(input, output, session) {
     
   }) #valuebox 2 close
   
-  
-  
+  observeEvent(input$fileReset, {
+    reset("user_file")
+    dataControl$uploadState <- NULL
+    dataControl$activateFilter <- 0
+    dataControl$filterValids <- 0
+    dataControl$imputation <- 0
+    dataControl$annoStart <- 0
+    dataControl$annoSubmit <- 0
+    infovals$countervalue <- 0
+  })
   #################################################################################
   ######### Quality Metrics ###########################
   Counter <- reactiveValues(normcounter = 1,
@@ -2831,3 +2969,4 @@ server <- function(input, output, session) {
 } #server close
 
 shinyApp(ui, server)
+
