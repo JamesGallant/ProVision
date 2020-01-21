@@ -1,5 +1,5 @@
 # ProVision
-ProVision is a data analysis dashboard written in the R-shiny framework. This dashboard is designed to analyse label free proteomics data downstream from maxQuant.
+ProVision is a data analysis dashboard written in the R-shiny framework. This dashboard is designed to analyse label free and TMT proteomics data downstream from maxQuant.
 If you are intersted in trying it out, you can find the online version here: https://provision.shinyapps.io/provision/
 
 The aim of this dashboard is to assist researchers in rapidly analysing their proteomics data without requiring prior knowledge of R or the data analysis workflow for proteomics. It is possible to go from file upload to analysed data and corresponding figures within minutes by following the defaults and some minor customising of the graphs. For those who like to spend more time, it is also possible to play around with the parameters and see what works optimally for a specific experiment by leveraging the reactive environment provided by R-shiny.
