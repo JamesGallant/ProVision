@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<style type="text/css">
+.inline {
+  background-color: #f7f7f7;
+  border:solid 1px #B0B0B0;
+}
+.error {
+	font-weight: bold;
+	color: #FF0000;
+}
+.warning {
+	font-weight: bold;
+}
+.message {
+	font-style: italic;
+}
+.source, .output, .warning, .error, .message {
+	padding: 0 1em;
+  border:solid 1px #F7F7F7;
+}
+.source {
+  background-color: #f5f5f5;
+}
+.left {
+  text-align: left;
+}
+.right {
+  text-align: right;
+}
+.center {
+  text-align: center;
+}
+.hl.num {
+  color: #AF0F91;
+}
+.hl.str {
+  color: #317ECC;
+}
+.hl.com {
+  color: #AD95AF;
+  font-style: italic;
+}
+.hl.opt {
+  color: #000000;
+}
+.hl.std {
+  color: #585858;
+}
+.hl.kwa {
+  color: #295F94;
+  font-weight: bold;
+}
+.hl.kwb {
+  color: #B05A65;
+}
+.hl.kwc {
+  color: #55aa55;
+}
+.hl.kwd {
+  color: #BC5A65;
+  font-weight: bold;
+}
+</style>
+<title>ProVision</title>
+</head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/Css/font-awesome.min.css">
+
+<!--CSS-->
+
+<style>
+html { scroll-behavior: smooth; } 
+.trueBody {
+  background:"white"
+}
+
+.mainNavHeader {
+  height:10vh;
+  background-color:#2b579e;
+  color:white;
+  border-style: outset;
+  border-radius:10px;
+  box-shadow: 3% 1% #888888;
+}
+
+.navList {
+  padding-top:2%;
+  font-size:1.2em;
+}
+.navList li {
+  display:inline;
+  padding:1%;
+}
+
+.navList li:hover {
+  background-color:#ebeced;
+  border-radius:10px;
+}
+
+.navList li a {
+  color:white;
+  text-decoration: none;
+}
+.navList li:hover a {
+  color:black;
+  text-decoration: none;
+}
+
+.trueHeader {
+  background:white;
+  border-style: outset;
+  border-radius:10px;
+  box-shadow: 3% 1% #888888;
+  display: flex;
+  flex-direction: row;
+}
+
+.headerBox {
+  margin: auto;
+  font-style:bold;
+  text-align:center;
+}
+
+.section2{
+  background-color:white;
+  border-style: outset;
+  text-align: justify;
+  text-justify: inter-word;
+  border-radius:10px;
+  border-color:#edeceb;
+  box-shadow: 3% 1% #888888;
+  padding-left:8%;
+  padding-right:8%;
+}
+.vidBox {
+  background-color:black;
+  border-style: outset;
+  border-radius:10px;
+  border-color:#edeceb;
+  box-shadow: 3% 1% #888888;
+  width:100%;
+  height:60vh;
+}
+
+.vidPos {
+  display:block;
+  margin-left:12%;
+  margin-top:2%;
+}
+
+
+</style>
+
+<body>
+<div class="trueBody">
+    <div class="mainNavHeader">
+    <ul class="navList" style="list-style:none;">
+      <li><a href="#general">General</a></li>
+      <li><a href="#LM"> Limma and linear models</a></li>
+      <li><a href="#switch">Switching comparisons</a></li>
+      <li><a href="#pvalQval">P-values,Q-values and effect size</a></li>
+      <li><a href="#correction">Corrections</a></li>
+    </ul>
+  </div>
+  <div class="trueHeader">
+    <div class="headerBox">
+      <h1>ProVision: Statistics</h1>
+    </div>
+  </div>
+  <div class = "section1"> <!---top section --->
+    <div class="vidBox">
+      <img src="../media/vidTut.svg" style="width:100%; height:100%;">
+    </div>
+  </div><!---top section close --->
+  <div class="section2">
+    <h2 id = "general">General</h2>
+    <p style="font-size:1.2em">This is where we perform the dreaded statistical tests. 
+    The statistical testing parameters can be seen as a research project on its own with many different experiments that can be performed to estimate what the best way would be to analyse the specific data at hand. Going through many of these methods ourselves, we have found <a href=#LM>Limma</a> to be the best generalized approach for intensity data such as those used in proteomics. The other side is spectral counting which has its own assumptions and we have not tested this for spectral counts nor do we extract spectral counts. Perhaps this will be implemented in future versions of ProVision. To perform the statistical tests simply clicking calculate will work and the default can be changed after the fact if this is desired. As with all other data, the calculations are generalisable and will change if something upstream is changed such as the filtering parameters and so forth. The only thing not fully supported is the removal of samples. The calculation will display the significance counts of each comparison at a time and if more than two groups are present these comparisons can be accessed using the previous and next buttons. In certain cases it may not be beneficial to compare each group to every other group, a time course experiment is a good example of this. Removing unnecessary comparisons is beneficial to the correction algorithms and also the computing time.</p>
+    <h2 id = "LM">Limma and linear models</h2>
+      <p style="font-size:1.2em">ProVision uses Limma or linear models for microarray data to calculate significant differences between groups. For in depth information on how limma works, please refer to their <a href="https://doi.org/10.1093/nar/gkv007" target="_blank"> publication </a>. Briefly moderated F-statistics (similar to ANOVA) that combine t-statistics for all comparisons is used as an over all test for significance in an empirical Bayes approach. Through this process the power of both t-tests as well as F-tests can be utilized and performs exceptionally well with matrix type data. Thus making Limma a powerful choice for proteomics data as well. When comparing Limma to more traditional methods such as ANOVA, the big differences should come from the genes with large differential variance, and moderate differential expression.  This is because the variance estimate is shrunk towards the mean in Limma, while ANOVA uses the sample variance. Since the t or F test uses the variance estimate in the denominator, genes with very small sample variance will be less significant with shrinkage, whereas genes with high variance will be 
+more significant. Finally, powerful correction tools such as Benjamini-Hochberg FDR can be used in conjunction with Limma, which has been shown to work well with proteomics data.
+ </p>
+    <h2 id = "switch"> switching comparisons</h2>
+      <p style="font-size:1.2em">This quite simply switches the comparison. Thus if it was treatment vs control the fold change would reflect a downregulation of treatment compared to control. If so desired the comparison can be changed to control  vs treatment and the respective fold changes will be reflected as such. Information regarding the comparison can be found in the information box and will be available in the methods tab as well.</p>
+   <h2 id = "pvalQval">P-values,Q-values and effect size</h2>
+      <p style="font-size:1.2em"> We use Limma to calculate the P-values but the important metric is the q-value. The q-value is derived from the p-value by use of a <a href="#correction">correction algorithm</a>. For proteomcis data we have a large amount of observations (i.e. proteins) and thus conducting statistical tests over however many proteins are present within the data set. A typical label free proteomics experiment has around 3000 protein identifications which means a iteration of about 3000 hypothesis tests across multiple groups. Thus, if we take into account that a p-value represents a probability value and we set that probability arbitrarily to a value of 0.05 we accept a 5% false positive rate. Thus in simpler terms five out of every 100 observations will be reported as a significantly regulated protein when in fact this is not true. While five may be acceptable in some cases, when the data is scaled up to even 1000 tests the false positive number increases to 50 and starts to represent a large portion of data that has the potential to be a false positive. In order to mitigate this effect the p-values are controlled by using correction in order to control the false discovery rate. This correction is known as the q-value and is what we base the call of significance on. The value works similar to p-value and two options are available, either 0.05 for leniency or 0.01 if a stricter cut off is desired. The effect size simply means fold change and is exported as a logarithmic value. The default fold change cut off is set at a log fold change of 1, meaning that there is a one log difference of a protein between two groups. It is wise to include fold change in the cut off metrics when deciding which proteins are significant, especially considering that we work with biological data. Hypothesis tests simply evaluate whether two values and their standard deviations deviate significantly from one another regardless of the magnitude of that difference. However, consider the expression of two proteins. If the absolute concentration of protein A is 1 nM and protein B is 1.5 nM would this be biologically relevant or would a difference of protein A at 1nM and protein B at 1uM represent a stronger biological significance. For this reason we give the option to change the cutoff for fold change significance in a wide range as it is subjective towards a study, the default of one is a good starting point. </p>
+    <h2 id = "correction"> Correction algorithms</h2>
+      <p style="font-size:1.2em">To obtain a p-value we use correction algorithms. The best performing for the purpose of a proteomics experiment is the <b>Benjamini-Hochberg FDR</b> which provides a good control over the false discovery rate while not being as strict.Benjamini-Hochberg uses a step up method and calculates the correction by ranking each p-value according to its value.  Another older, and perhaps more familiar algorithm is the <b>Bonferroni</b> correction. This is strict and increases in stringency as the number of input p-values (proteins) increases because every p-value is only compared to the total number of p-values. With small datasets it is good practice to use Bonferronni as all p-values are treated equally however as we increase the size it is better to control the false discovery rate instead. Thus at high numbers bonferronni correction would swing the other way and leave false negatives. That being said, for some cases it may be better to have false negative calls than controlling the amount of false positives in the data set. For a more concrete look at p-value correcting refer to this paper on <a href="https://doi.org/10.1074/mcp.M110.004374" target="_blank">multiple hypothesis testing</a>. The <b>Hommel</b> method is very similar to the Benjamini-Hochberg method in that step-up methods are used to control the false discovery rate. The Hommel method is more powerful than Benjamini-Hochberg, however the differences in results is small and the Hommel method is computationally more intensive. The <b>Benjamini-Yekutieli</b> method is the most recent adaptation of the correction methods and is an addition to its predecessor, the Benjamini-Hochberg FDR method. While Benjamini-Hochberg calculates the corrected p-values under certain dependencies (such as positive regression) the Benjamini-Yekutieli method assumes a general dependency. Thus this method is more generalisable over different data types but it sacrifices power to do so. Probability values corrected with this method would need to be much lower compared to Benjamini-Hochberg FDR to be considered significant yet nowhere close to the strictness of Bonferronni method. </p>
+  <br>
+
+</div>
+</body>
+</html>

@@ -33,6 +33,7 @@ require(xlsx)
 ui <- dashboardPage(
   skin = "blue",
   dashboardHeader(title = "ProVision"),
+ 
   dashboardSidebar(useShinyjs(),
                    useSweetAlert(),
                    #welcome side bar menu
@@ -154,10 +155,11 @@ ui <- dashboardPage(
                                                             min = 1
                                                ),
                                                radioButtons(inputId = "in_one",
-                                                            label = "Filter valid values by group",
-                                                            choices = c("In at least one group" = TRUE,
-                                                                        "In each group"= FALSE), 
-                                                            selected = TRUE),
+                                                            label = "Filter valid values",
+                                                            choices = c("In at least one group" = "one_group",
+                                                                        "In each group"= "each_group",
+                                                                        "In entire dataframe" = "entire_df"), 
+                                                            selected = "one_group"),
                                                actionButton(inputId = "filter_valids",
                                                             label = "filter",
                                                             icon = icon("filter"),
@@ -685,6 +687,12 @@ ui <- dashboardPage(
   ), #sidebar close
   
   dashboardBody(useShinyjs(),
+                tags$head(tags$script(HTML("
+                    // Enable navigation prompt
+                    window.onbeforeunload = function() {
+                        return 'Carefull, your changes will be lost!';
+                    };
+                "))),
                 uiOutput("cookieRender"),
                 tabsetPanel(id = "main_tabs",
                             #welcome tab/about tab
@@ -1102,7 +1110,6 @@ server <- function(input, output, session) {
       } else {
         intensity.names = c()
         for (i in 0:input$tmtPlex) {
-          print(i)
           pat <- paste0("^Reporter.intensity.corrected.", i, "$")
           tmt <- grep(pattern = pat, names(df), value = TRUE)
           intensity.names <- c(intensity.names, tmt)
@@ -1142,12 +1149,33 @@ server <- function(input, output, session) {
       counts >= user_val
     })
     
-    if (in_one == TRUE) {
-      x$keep = apply(cond.filter, 1, any)
-    } else {
-      x$keep = apply(cond.filter, 1, all)
-    }
+    #in matrix
     
+    if (in_one == "one_group") {
+      x$keep = apply(cond.filter, 1, any)
+    } else if (in_one == "each_group") {
+      x$keep = apply(cond.filter, 1, all)
+      
+    } else if (in_one == "entire_df") {
+      
+      grabNames <- colnames(x)
+      
+      colnames(x) <- sapply(names(x), function(i) {
+        paste(i, round(runif(1, 1, 100), 1), sep = ".")
+      })
+      
+      grabNames <- append(grabNames, values = "keep", after = length(grabNames))
+      
+      x$keep <- rowSums(!is.na(as.matrix(x)))
+      
+      uniprotID <- rownames(x)
+      x = mutate(x, 
+                    keep = ifelse(x$keep <= user_val, "FALSE", "TRUE"))
+      
+      
+      colnames(x) <- grabNames
+      rownames(x) <- uniprotID
+    }
     
     return(x)
   }
@@ -1291,7 +1319,6 @@ server <- function(input, output, session) {
         } else {
           intensity.names = c()
           for (i in 0:input$tmtPlex) {
-            print(i)
             pat <- paste0("^Reporter.intensity.corrected.", i, "$")
             tmt <- grep(pattern = pat, names(df), value = TRUE)
             intensity.names <- c(intensity.names, tmt)
@@ -1319,7 +1346,7 @@ server <- function(input, output, session) {
       #assign protein IDs from oringinal this will be majority prt IDs in the end
       df2$Protein.IDs <- df$Protein.IDs
       df2$Majority.protein.IDs <- df$Majority.protein.IDs
-      
+      df2$Fasta.headers <- df$Fasta.headers
       #need to get everything before a ; character first
       #check for fasta col, if present use that
       parseRule <- grepl(">", df2$Fasta.headers)
@@ -1338,6 +1365,7 @@ server <- function(input, output, session) {
         df2$UniprotID <- fasta
         df2$GeneNames <- fasta
       }
+      df2$Fasta.headers <- NULL
       
       
       #get the uniprot ID
@@ -1383,6 +1411,7 @@ server <- function(input, output, session) {
         #add gene names again
         dat2$GeneNames <- gene.names
         #filter
+        
         dat2 <- dat2[!(dat2$keep=="FALSE"),]
         dat2$keep <- NULL
         dat2$geneNames <- NULL
@@ -2546,8 +2575,8 @@ server <- function(input, output, session) {
         color: red;
     }"
       )
-      p <- pheatmap(d2, color = brewer.pal(input$HMColChoice, 
-                                           n = input$HMcolScale),
+      p <- pheatmap(d2, color = rev(brewer.pal(input$HMColChoice, 
+                                           n = input$HMcolScale)),
                     border_color = input$HMborderCol,
                     fontsize_col = input$HMColFontSize,
                     fontsize_row = input$HMRowFontSize,
