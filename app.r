@@ -1888,12 +1888,8 @@ server <- function(input, output, session) {
     scatter_user()[index]})  
   
   #corrplots
-  correllelogram <- reactive({
-    
-    if (is.null(input$user_file)) {
-      return(NULL)
-    }
-    
+  
+  corrProcessing <- reactive({
     processed_data <-processed_data()
     
     anno_data <- anno_data()
@@ -1901,13 +1897,17 @@ server <- function(input, output, session) {
     colnames(processed_data) <- anno_data$axisLabels
     d <- processed_data
     
-    sanityCheck <- sapply(d, function(x) {
-      is.na(x)
-    })
+    checks <- sapply(d, function(x) {is.finite(x)})
+    
+    if (FALSE %in% checks) {
+      
+      sanityRule <- "fail"
+    } else {
+      sanityRule <- "pass"
+    }
     
     validate(
-      need(TRUE %in% sanityCheck, 
-           message = "This plot requires the data to have no missing values.")
+      need(sanityRule == "pass", message = "This plot requires data with no missing values")
     )
     
     cormatrix = rcorr(as.matrix(d), type='pearson')
@@ -1923,10 +1923,15 @@ server <- function(input, output, session) {
     
     cordata$value <- round(cordata$value, digits = input$corrDecimalPos)
     
-    
+    return(cordata)
+  })
+  
+  correllelogram <- reactive({
+  
     if (input$corrRender == 0) {
       return(NULL)
     } else {
+      cordata <- corrProcessing()
       p = ggplot(cordata, aes(x=Var1, y=Var2, fill=value)) +
         geom_tile() + 
         scale_fill_gradientn(colours = brewer.pal(input$corrColChoice, 
@@ -1942,6 +1947,7 @@ server <- function(input, output, session) {
               axis.text.y = element_text(size = input$corrYSize)) 
       
       if (input$corrValDisp == TRUE) {
+        txtsize <- par('din')[2] / 2
         p =  p + geom_text(label=cordata$value, size=txtsize * 0.8, color="grey9")
         
         return(p)
@@ -1984,6 +1990,7 @@ server <- function(input, output, session) {
   pca <- reactive({
     if (input$pcaRender > 0) {
       dat <- processed_data()
+      
       anno_data <- anno_data()
       idnames <- anno_data$ID
       dat$GeneNames <- NULL
@@ -2001,6 +2008,7 @@ server <- function(input, output, session) {
   
   pcaPlots <- reactive({ 
     pcaData <- pca()
+  
     anno_data <- anno_data()
     cols <- pcaColNames()
     if (is.null(pcaColNames())) {
@@ -2163,8 +2171,7 @@ server <- function(input, output, session) {
     d2$ID <- NULL
     d2$UniprotID <- NULL
     
-    return(tryCatch(d2, error = function(e) stop(safeError("No groups detected"))))
-    #return(d2)
+    return(d2)
   })
   
   output$downReg <- renderValueBox({
