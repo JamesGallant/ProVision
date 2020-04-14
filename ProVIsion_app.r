@@ -1506,16 +1506,7 @@ server <- function(input, output, session) {
     }
   })
   
-
-  
-  ######filter based on groups#####
-  
-  
-  #get df from user inputs
-  
-  ###### info boxes #####
-  ##### Display data #####
-  ####cant display filtered data
+  #render the data table
   output$user_data_in <-  DT::renderDataTable({
     
     #this is to remove error message in display
@@ -1540,13 +1531,8 @@ server <- function(input, output, session) {
       ))
     }
   })
-  
-  
-  #get df from user inputs
-  
-  ###### info boxes #####
-  
-  #information boxes: These display dynamic help for data upload
+
+  #information boxes: Handlers
   
   infovals = reactiveValues(countervalue = 0)
   
@@ -1566,6 +1552,7 @@ server <- function(input, output, session) {
     infovals$countervalue <- infovals$countervalue + 1
   })
   
+  #render the info boxes
   output$data_handling_info <- renderValueBox({
     #check if data is loaded
     if (is.null(dataControl$uploadState)) {
@@ -1626,9 +1613,7 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  #valuebox1: This will dynamically change in accordance with protein
-  #           numbers
+  #valueboxes 1
   output$protein_ids_count <- renderValueBox({
     #Display unique peptides here
     if (is.null(dataControl$uploadState)) {
@@ -1653,7 +1638,7 @@ server <- function(input, output, session) {
     }
   }) #protein ID close
   
-  #valuebox 2: This will display contaminants and such
+  #valuebox 2
   output$contaminants_count <- renderValueBox({
     
     if (is.null(dataControl$uploadState)) {
@@ -1664,10 +1649,16 @@ server <- function(input, output, session) {
     } else {
       if (dataControl$activateFilter == 0) {
         rawFile <- file_upload()
+        
+        validate(
+          need(rawFile$Majority.protein.IDs, 
+               message = "Protein IDs column not detected, is this a MaxQuant file?"))
+        
         contam1 <- nrow(subset(rawFile, Potential.contaminant == "+"))
         contam2 <- nrow(subset(rawFile, Reverse == "+"))
         contam3 <- nrow(subset(rawFile, Only.identified.by.site == "+"))
         contam <- sum(contam1,contam2, contam3)
+        
         valueBox(value = contam,
                  subtitle = "Potential errouneuos protein IDs",
                  icon = icon("exclamation-triangle"),
