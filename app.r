@@ -1017,6 +1017,8 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   ######Upload limit#####
   options(shiny.maxRequestSize=30*1024^2)
+  options(shiny.sanitize.errors = FALSE)
+  #stop(safeError('the user should see this no matter what'))
   ######Welcome tab######
   
   ####privacy####
@@ -1034,7 +1036,9 @@ server <- function(input, output, session) {
       }
     }
   })
+  
   output$cookieRender <-  renderUI({userCookies()})
+  
   tab1Counters <- reactiveValues(ClickCounter = 0)
   
   observeEvent(input$goTut, {
@@ -1052,6 +1056,7 @@ server <- function(input, output, session) {
       disable("fullTutPages")
     }
   })
+  
   HTMLdata <- reactive({
     #observe events
    if (tab1Counters$ClickCounter == 0) {
@@ -1078,6 +1083,7 @@ server <- function(input, output, session) {
   output$WelcomeDocs <- renderUI({
     HTMLdata()
   })
+  
   ###### DATA INPUT #####
   file_upload <- reactive({
     data <- read.csv(input$user_file$datapath, 
@@ -1099,6 +1105,7 @@ server <- function(input, output, session) {
                    selected = 9)
     }
   })
+  
   colPickData <- reactive({
     if (!is.null(input$user_file)) {
       df <- file_upload()
@@ -1134,7 +1141,6 @@ server <- function(input, output, session) {
     } else {return(NULL)}
   })
   
-
   #### Data handling ################################################################
   #functions
   #filter valid values
@@ -1262,6 +1268,7 @@ server <- function(input, output, session) {
                           value = FALSE)
     }
   })
+  
   # control data flow allows to ignore the cached data
   dataControl = reactiveValues(activateFilter = 0,
                                uploadState = NULL,
@@ -1300,7 +1307,8 @@ server <- function(input, output, session) {
       uniquePep <- isolate(input$user_unique_pep)
       logTrans <- isolate(input$logTransform)
       
-      # Filter identifications  
+      # Filter identifications
+      
       df = raw %>%
         filter(Potential.contaminant != "+") %>%
         filter(Reverse != "+") %>%
@@ -1431,15 +1439,14 @@ server <- function(input, output, session) {
           colnames(df2) <- anno_data$ID
           df2$GeneNames <- gene.names
           
-          return(df2)
+          return(tryCatch(df2, error = function(e) stop(safeError(""))))
         }
       }
-      return(df2)
+      return(tryCatch(df2, error = function(e) stop(safeError(""))))
     }
-    return(df2)
+    return(tryCatch(df2, error = function(e) stop(safeError(""))))
   })
   
- 
   ##### get df to display for user input ###
   #we will prompt for reps like this
   categorial_anno <- reactive({
@@ -1489,7 +1496,6 @@ server <- function(input, output, session) {
   
   observe({
     if (dataControl$annoSubmit > 0) {
-      print(dataControl$annoSubmit)
       sendSweetAlert(
         session = session,
         title = "Success",
@@ -1516,7 +1522,14 @@ server <- function(input, output, session) {
     
     if (dataControl$activateFilter == 0) {
       #first display
-      datatable(file_upload(), options = list(searching = F,
+      file_upload <- file_upload()
+      
+      validate(
+        need(file_upload$Potential.contaminant,
+             message = "Certain key columns were not detected, are you sure the file is correct?")
+      )
+      
+      datatable(file_upload, options = list(searching = F,
                                               pageLength = 20,
                                               lengthMenu = c(5, 10, 15, 20), 
                                               scrollX = T,
@@ -1623,7 +1636,15 @@ server <- function(input, output, session) {
                icon = icon("list-ol"))
     } else {
       if (dataControl$activateFilter == 0) {
-        valueBox(value = nrow(file_upload()),
+        
+        file_upload <- file_upload()
+        
+        validate(
+          need(file_upload$Potential.contaminant,
+               message = "")
+        )
+        
+        valueBox(value = nrow(file_upload),
                  subtitle = "Number of proteins",
                  color = "orange",
                  icon = icon("list-ol")) 
@@ -1685,7 +1706,7 @@ server <- function(input, output, session) {
     dataControl$annoSubmit <- 0
     infovals$countervalue <- 0
   })
-  #################################################################################
+
   ######### Quality Metrics ###########################
   Counter <- reactiveValues(normcounter = 1,
                             scatcounter = 1)
@@ -1714,14 +1735,18 @@ server <- function(input, output, session) {
     if (is.null(input$user_file)) {
       return(NULL)
     }
+    
     processed_data <- processed_data()
+    
     processed_data$GeneNames <- NULL
+
     anno_data <- anno_data()
     colnames(processed_data) <- anno_data$axisLabels
     ylabname <- colnames(processed_data[Counter$normcounter])
     index <- Counter$normcounter
     qqplotList <- list()
     histPlotList <- list()
+    
     #init plot cylce on render to save computing time
     if (input$normRender > 0) {
       #run for selected plots only
@@ -1864,14 +1889,27 @@ server <- function(input, output, session) {
   
   #corrplots
   correllelogram <- reactive({
+    
     if (is.null(input$user_file)) {
       return(NULL)
     }
+    
     processed_data <-processed_data()
+    
     anno_data <- anno_data()
     processed_data$GeneNames <- NULL
     colnames(processed_data) <- anno_data$axisLabels
     d <- processed_data
+    
+    sanityCheck <- sapply(d, function(x) {
+      is.na(x)
+    })
+    
+    validate(
+      need(TRUE %in% sanityCheck, 
+           message = "This plot requires the data to have no missing values.")
+    )
+    
     cormatrix = rcorr(as.matrix(d), type='pearson')
     cordata = melt(cormatrix$r)
     cordata$labelr = abbreviateSTR(melt(cormatrix$r)$value, 'r')
@@ -1904,7 +1942,8 @@ server <- function(input, output, session) {
               axis.text.y = element_text(size = input$corrYSize)) 
       
       if (input$corrValDisp == TRUE) {
-        p =  p + geom_text(label=cordata$value, size=txtsize * 0.8, color="grey9") 
+        p =  p + geom_text(label=cordata$value, size=txtsize * 0.8, color="grey9")
+        
         return(p)
       } else {
         return(p)
@@ -1917,9 +1956,7 @@ server <- function(input, output, session) {
   })
   
   #pca plots
-  #Display groups system
-  #render colour picking ui
-  
+
   pcaCols <- reactive({
     anno_data <- anno_data()
     if (input$pcaRender > 0) {
@@ -1994,6 +2031,7 @@ server <- function(input, output, session) {
   })
   
   output$pcaColChoice <- renderUI({pcaCols()})
+  
   output$pcaPlot <- renderPlot({
     if (input$pcaRender == 0) {
       return(NULL)
@@ -2049,7 +2087,6 @@ server <- function(input, output, session) {
     }
   })
   
-  
   #infoboxes
   output$currentCompare <- renderInfoBox({
     if (input$calculateStats > 0) {
@@ -2073,6 +2110,12 @@ server <- function(input, output, session) {
                                       sep = "_")
     processed_data$GeneNames <- NULL
     anno_data <- anno_data()
+    
+    validate(
+      need(!is.null(anno_data),
+           message = "No groups assigned")
+    )
+    
     colnames(processed_data) <- anno_data$ID
     anno_data$axisLabels <- NULL
     if (input$calculateStats > 0) {
@@ -2084,11 +2127,12 @@ server <- function(input, output, session) {
       design <- model.matrix(~0+f.df)
       colnames(design) <- levels(f.df)
       fit <- lmFit(processed_data, design)
-      
+    
       cont.matrix <- makeContrasts(contrasts = input$hypoTestMat, levels = design)
       
       fit2 <- contrasts.fit(fit, cont.matrix)
       fit2 <- eBayes(fit2)
+      
       return(fit2)
       
     } else {
@@ -2119,12 +2163,14 @@ server <- function(input, output, session) {
     d2$ID <- NULL
     d2$UniprotID <- NULL
     
-    return(d2)
+    return(tryCatch(d2, error = function(e) stop(safeError("No groups detected"))))
+    #return(d2)
   })
   
   output$downReg <- renderValueBox({
     if (input$calculateStats > 0) {
       d <- statsOut()
+      
       valueBox(value = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize < (input$UserFCCutoff * -1) ),
                subtitle = "Total significantly downregulated proteins",
                color = "orange")
