@@ -1309,6 +1309,11 @@ server <- function(input, output, session) {
       
       # Filter identifications
       
+      validate(
+        need(raw$Potential.contaminant,
+             message = "File error: is this a MaxQuant output file?")
+      )
+      
       df = raw %>%
         filter(Potential.contaminant != "+") %>%
         filter(Reverse != "+") %>%
@@ -1650,6 +1655,7 @@ server <- function(input, output, session) {
                  icon = icon("list-ol")) 
       } else {
         if (dataControl$activateFilter > 0) {
+          
           valueBox(value = nrow(processed_data()),
                    subtitle = "Number of proteins",
                    color = "orange",
