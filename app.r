@@ -33,7 +33,6 @@ require(xlsx)
 ui <- dashboardPage(
   skin = "blue",
   dashboardHeader(title = "ProVision"),
- 
   dashboardSidebar(useShinyjs(),
                    useSweetAlert(),
                    #welcome side bar menu
@@ -60,28 +59,14 @@ ui <- dashboardPage(
                                                actionButton(inputId = "goTut",
                                                             icon = icon("play-circle"),
                                                             label = "Go",
-                                                            style = "width:200px")),
-                                      menuItem("Cookies", startExpanded = TRUE,
-                                               div(style="text-align:left; color=white;padding:5%;",
-                                                   tags$b("This site uses cookies see the",br(),
-                                                          "about us section for more ",br(),
-                                                          "information.", br(), br(),
-                                                          "Toggle these buttons
-                                                          to accept",br(),
-                                                          "or decline cookies.")),
-                                               radioButtons(inputId = "cookies",
-                                                            label = "Enable/Disable cookies",
-                                                            choices = c("Enable", "Disable"),
-                                                            selected = "Enable"),
-                                               actionButton(inputId = "cookieChoice",
-                                                            label = "go",
-                                                            width=200,
-                                                            icon = icon("play-circle"))
-                                               )
-                                    )),
+                                                            style = "width:200px")))),
                    #data handling sidebar menu
                    conditionalPanel(condition = "input.main_tabs == 'data_handling'",
                                     sidebarMenu(
+                                      actionButton(inputId = "DataProcTut",
+                                                   label = "Show tutorial",
+                                                   width = 200,
+                                                   icon = icon("graduation-cap")),
                                       #this is where we handle file uploadinh
                                       menuItem("Upload your files", tabName = "file_upload", 
                                                icon = icon("upload"),
@@ -188,6 +173,10 @@ ui <- dashboardPage(
                                                             icon = icon("play-circle"))),
                                       menuItem("Download tables",
                                                icon = icon("download"),
+                                               actionButton(inputId = "tut_dataPreProcExport",
+                                                            label = "Show tutorial",
+                                                            width = 200,
+                                                            icon = icon("graduation-cap")),
                                                textInput(inputId = "ProcDataDownName",
                                                          label = "File name",
                                                          placeholder = "My awesome data"),
@@ -203,6 +192,10 @@ ui <- dashboardPage(
                    #qualityMetrics sidebar
                    conditionalPanel(condition = "input.main_tabs == 'quality_metrics'",
                                     sidebarMenu(
+                                      actionButton(inputId = "tut_QC",
+                                                   label = "Show tutorial",
+                                                   width = 200,
+                                                   icon = icon("graduation-cap")),
                                       #QQ-plots
                                       menuItem("Normality plots",
                                                icon = icon("line-chart"),
@@ -443,6 +436,10 @@ ui <- dashboardPage(
                    #statistics sidebar
                    conditionalPanel(condition = "input.main_tabs == 'statistics'",
                                     sidebarMenu(
+                                      actionButton(inputId = "tut_stats",
+                                                   label = "Show tutorial",
+                                                   width = 200,
+                                                   icon = icon("graduation-cap")),
                                       menuItem(text = "Analyse data",
                                                icon = icon("calculator"),
                                                radioButtons(inputId = "ComparisonSwitch",
@@ -482,6 +479,10 @@ ui <- dashboardPage(
                                                                      style="display:inline-block;width:40%;text-align: center;"))),
                                       menuItem("Download tables",
                                                icon = icon("download"),
+                                               actionButton(inputId = "tut_statsExport",
+                                                            label = "Show tutorial",
+                                                            width = 200,
+                                                            icon = icon("graduation-cap")),
                                                textInput(inputId = "SigDataDownName",
                                                          label = "File name",
                                                          placeholder = "My awesome data"),
@@ -504,6 +505,10 @@ ui <- dashboardPage(
                    #figure construction sidebar
                    conditionalPanel(condition = "input.main_tabs == 'figures'",
                                     sidebarMenu(
+                                      actionButton(inputId = "tut_mainFigs",
+                                                   label = "Show tutorial",
+                                                   width = 200,
+                                                   icon = icon("graduation-cap")),
                                       menuItem("Volcano plots",
                                                actionButton(inputId = "generateVolcs",
                                                             label = "Render plots",
@@ -693,7 +698,7 @@ ui <- dashboardPage(
                         return 'Carefull, your changes will be lost!';
                     };
                 "))),
-                uiOutput("cookieRender"),
+                #uiOutput("cookieRender"),
                 tabsetPanel(id = "main_tabs",
                             #welcome tab/about tab
                             tabPanel(title = "Welcome",
@@ -1022,22 +1027,24 @@ server <- function(input, output, session) {
   ######Welcome tab######
   
   ####privacy####
-  userCookies <- reactive({
-    if (input$cookieChoice == 0) {
-      return(NULL)
-    } else {
-      sendSweetAlert(session,
-                     title = "Preference logged",
-                     type = "success")
-      if (input$cookies == "Disable") {
+  oldCookies <- function() {
+    userCookies <- reactive({
+      if (input$cookieChoice == 0) {
         return(NULL)
       } else {
-        return(tags$head(includeHTML("googleanalytics.html")))
+        sendSweetAlert(session,
+                       title = "Preference logged",
+                       type = "success")
+        if (input$cookies == "Disable") {
+          return(NULL)
+        } else {
+          return(tags$head(includeHTML("googleanalytics.html")))
+        }
       }
-    }
-  })
-  
-  output$cookieRender <-  renderUI({userCookies()})
+    })
+    
+    output$cookieRender <-  renderUI({userCookies()})
+  }
   
   tab1Counters <- reactiveValues(ClickCounter = 0)
   
@@ -1084,6 +1091,137 @@ server <- function(input, output, session) {
     HTMLdata()
   })
   
+  #pre processing
+  observeEvent(input$DataProcTut, {
+    showModal(tags$div(id="modal1", tutDataPreProcess))
+  }
+  )
+  
+  tutDataPreProcess <- modalDialog(
+    fluidPage(
+      h3(strong("Data pre processing"), align="left"),
+      uiOutput('tutPreProcess_html')
+    ),
+    size="l", 
+    easyClose = TRUE,
+    fade = TRUE 
+  )
+  
+  output$tutPreProcess_html <- renderUI({
+    includeHTML("www/HTML/dataProcessing.html")
+  })
+  
+  outputOptions(output, "tutPreProcess_html", suspendWhenHidden = FALSE)
+  
+  #qc
+  observeEvent(input$tut_QC, {
+    showModal(tags$div(id="modal2", tut_data_QC))
+  }
+  )
+  
+  tut_data_QC <- modalDialog(
+    fluidPage(
+      h3(strong("Quality control"), align="left"),
+      uiOutput('tutQC_html')
+    ),
+    size="l", 
+    easyClose = TRUE,
+    fade = TRUE 
+  )
+  
+  output$tutQC_html <- renderUI({
+    includeHTML("www/HTML/qc.html")
+  })
+  
+  outputOptions(output, "tutQC_html", suspendWhenHidden = FALSE)
+  
+  #stats
+  observeEvent(input$tut_stats, {
+    showModal(tags$div(id="modal3", tut_data_stats))
+  }
+  )
+  
+  tut_data_stats <- modalDialog(
+    fluidPage(
+      h3(strong("Statistics"), align="left"),
+      uiOutput('tutstats_html')
+    ),
+    size="l", 
+    easyClose = TRUE,
+    fade = TRUE 
+  )
+  
+  output$tutstats_html <- renderUI({
+    includeHTML("www/HTML/stats.html")
+  })
+  
+  outputOptions(output, "tutstats_html", suspendWhenHidden = FALSE)
+  
+  #mainFigs
+  observeEvent(input$tut_mainFigs, {
+    showModal(tags$div(id="modal4", tut_data_mainFigs))
+  }
+  )
+  
+  tut_data_mainFigs <- modalDialog(
+    fluidPage(
+      h3(strong("Main figures"), align="left"),
+      uiOutput('tutMainFigs_html')
+    ),
+    size="l", 
+    easyClose = TRUE,
+    fade = TRUE 
+  )
+  
+  output$tutMainFigs_html <- renderUI({
+    includeHTML("www/HTML/mainFigs.html")
+  })
+  
+  outputOptions(output, "tutMainFigs_html", suspendWhenHidden = FALSE)
+  
+  #tut_dataPreProcExport
+  observeEvent(input$tut_dataPreProcExport, {
+    showModal(tags$div(id="modal5", tut_export_preproc))
+  }
+  )
+  
+  tut_export_preproc <- modalDialog(
+    fluidPage(
+      h3(strong("Export data file"), align="left"),
+      uiOutput('tut_export_preproc_html')
+    ),
+    size="l", 
+    easyClose = TRUE,
+    fade = TRUE 
+  )
+  
+  output$tut_export_preproc_html <- renderUI({
+    includeHTML("www/HTML/processedDataExportModal.html")
+  })
+  
+  outputOptions(output, "tut_export_preproc_html", suspendWhenHidden = FALSE)
+  
+  #"tut_statsExport"
+  observeEvent(input$tut_statsExport, {
+    showModal(tags$div(id="modal6", tut_export_stats))
+  }
+  )
+  
+  tut_export_stats <- modalDialog(
+    fluidPage(
+      h3(strong("Export data file"), align="left"),
+      uiOutput('tut_export_stats_html')
+    ),
+    size="l", 
+    easyClose = TRUE,
+    fade = TRUE 
+  )
+  
+  output$tut_export_stats_html <- renderUI({
+    includeHTML("www/HTML/statsDataExportModal.html")
+  })
+  
+  outputOptions(output, "tut_export_stats_html", suspendWhenHidden = FALSE)
   ###### DATA INPUT #####
   file_upload <- reactive({
     data <- read.csv(input$user_file$datapath, 
