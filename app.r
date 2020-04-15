@@ -5,6 +5,9 @@
 #To do:images need to be png format for web
 #Font sizes tab for main images
 #multidownlaoder for volcs and ?heat has format issues
+#shiny being unreasonable
+#library(BiocManager)
+#options(repos = BiocManager::repositories())
 #Libraries we need
 require(shinydashboard)
 require(shiny)
