@@ -142,11 +142,11 @@ ui <- dashboardPage(
                                                             value = 2,
                                                             min = 1
                                                ),
-                                               radioButtons(inputId = "in_one",
+                                               radioButtons(inputId = "in_one_user",
                                                             label = "Filter valid values",
                                                             choices = c("In at least one group" = "one_group",
                                                                         "In each group"= "each_group",
-                                                                        "In entire dataframe" = "entire_df"), 
+                                                                        "Remove all missing values" = "entire_df"), 
                                                             selected = "one_group"),
                                                actionButton(inputId = "filter_valids",
                                                             label = "filter",
@@ -1287,45 +1287,83 @@ server <- function(input, output, session) {
   #filter valid values
   filterValidVals <- function(x, in_one, user_val) {
     #count reps and get groups
-    conditions <- as.data.frame(table(unlist(names(x))))
-    conditions <- conditions$Var1
-    
-    cond.filter <- sapply(levels(conditions), function(i) {
-      df2 <- x[, grepl(i, names(x))]
-      counts <- rowSums(is.finite(as.matrix(df2)))
-      counts >= user_val
-    })
-    
-    #in matrix
-    
     if (in_one == "one_group") {
-      x$keep = apply(cond.filter, 1, any)
-    } else if (in_one == "each_group") {
-      x$keep = apply(cond.filter, 1, all)
+      anno_data <- anno_data()
+      #need to keep genenames indexed
+      gene.names <- x$GeneNames
+      x$GeneNames <- NULL
       
-    } else if (in_one == "entire_df") {
+      colnames(x) <- anno_data$annotation
       
-      grabNames <- colnames(x)
+      conditions <- as.data.frame(table(unlist(names(x))))
+      conditions <- conditions$Var1
       
-      colnames(x) <- sapply(names(x), function(i) {
-        paste(i, round(runif(1, 1, 100), 1), sep = ".")
+      cond.filter <- sapply(levels(conditions), function(i) {
+        df2 <- x[, grepl(i, names(x))]
+        counts <- rowSums(is.finite(as.matrix(df2)))
+        counts >= user_val
       })
       
-      grabNames <- append(grabNames, values = "keep", after = length(grabNames))
+      x$keep = apply(cond.filter, 1, any)
       
-      x$keep <- rowSums(!is.na(as.matrix(x)))
+      x$GeneNames <- gene.names
+      #filter
       
-      uniprotID <- rownames(x)
-      x = mutate(x, 
-                    keep = ifelse(x$keep <= user_val, "FALSE", "TRUE"))
-      
-      
-      colnames(x) <- grabNames
-      rownames(x) <- uniprotID
+      x <- x[!(x$keep=="FALSE"),]
+      x$keep <- NULL
+      x$geneNames <- NULL
     }
     
+    if (in_one == "each_group") {
+      anno_data <- anno_data()
+      #need to keep genenames indexed
+      gene.names <- x$GeneNames
+      x$GeneNames <- NULL
+      
+      colnames(x) <- anno_data$annotation
+      
+      
+      conditions <- as.data.frame(table(unlist(names(x))))
+      conditions <- conditions$Var1
+      
+      cond.filter <- sapply(levels(conditions), function(i) {
+        df2 <- x[, grepl(i, names(x))]
+        counts <- rowSums(is.finite(as.matrix(df2)))
+        counts >= user_val
+      })
+      
+      x$keep = apply(cond.filter, 1, all)
+      
+      x$GeneNames <- gene.names
+      #filter
+      
+      x <- x[!(x$keep=="FALSE"),]
+      x$keep <- NULL
+      x$geneNames <- NULL
+    }
+    #in matrix
+    
+    if (in_one == "entire_df") {
+      anno_data <- anno_data()
+      #need to keep genenames indexed
+      gene.names <- x$GeneNames
+      x$GeneNames <- NULL
+      
+      colnames(x) <- anno_data$annotation
+      rows <- rownames(x)
+      
+      x = do.call(data.frame, lapply(x, function(dat) replace(dat, is.infinite(dat), NA)))
+      
+      rownames(x) <- rows
+      colnames(x) <- anno_data$annotation
+      x$GeneNames <- gene.names
+      x = na.omit(x)
+
+    }
     return(x)
-  }
+
+    }
+    
   #median centering for normalisation
   center_med = function(x) {
     kol.name <- as.data.frame(table(unlist(names(x))))
@@ -1547,29 +1585,29 @@ server <- function(input, output, session) {
       
       
       if (dataControl$filterValids > 0) {
-        x <- df2
-        anno_data <- anno_data()
+        #x <- df2
+        #anno_data <- anno_data()
         #need to keep genenames indexed
-        gene.names <- x$GeneNames
-        x$GeneNames <- NULL
+        #gene.names <- x$GeneNames
+        #x$GeneNames <- NULL
         
-        colnames(x) <- anno_data$annotation
+        #colnames(x) <- anno_data$annotation
         
         
         min_val_user <- isolate(input$min_val_user)
-        in_one_user <- isolate(input$in_one)
-        dat2 <- filterValidVals(x = x, 
+        #in_one_user <- isolate(input$in_one)
+        df2 <- filterValidVals(x = df2, 
                                 user_val = min_val_user, 
-                                in_one = in_one_user)
+                                in_one = input$in_one_user)
         
         #add gene names again
-        dat2$GeneNames <- gene.names
+        #dat2$GeneNames <- gene.names
         #filter
         
-        dat2 <- dat2[!(dat2$keep=="FALSE"),]
-        dat2$keep <- NULL
-        dat2$geneNames <- NULL
-        df2 <- dat2
+        #dat2 <- dat2[!(dat2$keep=="FALSE"),]
+        #dat2$keep <- NULL
+        #dat2$geneNames <- NULL
+        #df2 <- dat2
         
         if (dataControl$imputation > 0) {
           #centering
@@ -1585,7 +1623,7 @@ server <- function(input, output, session) {
           colnames(df2) <- anno_data$ID
           df2$GeneNames <- gene.names
           
-          return(tryCatch(df2, error = function(e) stop(safeError(""))))
+          #return(tryCatch(df2, error = function(e) stop(safeError(""))))
         }
       }
       return(tryCatch(df2, error = function(e) stop(safeError(""))))
@@ -2325,7 +2363,8 @@ server <- function(input, output, session) {
     if (input$calculateStats > 0) {
       d <- statsOut()
       
-      valueBox(value = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize < (input$UserFCCutoff * -1) ),
+      valueBox(value = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize < (input$UserFCCutoff * -1),
+                           na.rm = TRUE),
                subtitle = "Total significantly downregulated proteins",
                color = "orange")
     } else {
@@ -2338,7 +2377,8 @@ server <- function(input, output, session) {
   output$upReg <- renderValueBox({
     if (input$calculateStats > 0) {
       d <- statsOut()
-      valueBox(value = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize > input$UserFCCutoff ),
+      valueBox(value = sum(round(d$qValue, 3) < input$UserSigCutoff & d$EffectSize > input$UserFCCutoff, 
+                           na.rm = TRUE ),
                subtitle = "Total significantly upregulated proteins",
                color = "orange")
     } else {
@@ -2351,7 +2391,8 @@ server <- function(input, output, session) {
   output$totalSig <- renderValueBox({
     if (input$calculateStats > 0) {
       d <- statsOut()
-      valueBox(value = sum(round(d$qValue, 3) < input$UserSigCutoff & abs(d$EffectSize) > input$UserFCCutoff ),
+      valueBox(value = sum(round(d$qValue, 3) < input$UserSigCutoff & abs(d$EffectSize) > input$UserFCCutoff,
+                           na.rm = TRUE ),
                subtitle = "Total significantly regulated proteins",
                color = "orange")
     } else {
