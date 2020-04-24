@@ -1,10 +1,3 @@
-##
-#shiny app for analysing mass spec data
-#creators James Gallant, Tiaan Heunis
-#Copyright 2019
-#To do:images need to be png format for web
-#Font sizes tab for main images
-#multidownlaoder for volcs and ?heat has format issues
 #shiny being unreasonable
 #library(BiocManager)
 #options(repos = BiocManager::repositories())
@@ -30,7 +23,9 @@ require(pheatmap)
 require(rJava)
 require(zip)
 require(xlsx)
-#starting cod e for the app
+require(WebGestaltR)
+
+source(file = "Www/scripts/functions.r")
 
 #user interface starts here
 ui <- dashboardPage(
@@ -513,6 +508,7 @@ ui <- dashboardPage(
                                                    width = 200,
                                                    icon = icon("graduation-cap")),
                                       menuItem("Volcano plots",
+                                               icon = icon("chart-line"),
                                                actionButton(inputId = "generateVolcs",
                                                             label = "Render plots",
                                                             icon = icon("play-circle"),
@@ -586,6 +582,7 @@ ui <- dashboardPage(
                                                                      selected = "Both"))
                                       ),
                                       menuItem("Heatmaps",
+                                               icon = icon('chart-line'),
                                                actionButton(inputId = "generateHM",
                                                             label = "Render Heatmap",
                                                             icon = icon("play-circle"),
@@ -668,6 +665,56 @@ ui <- dashboardPage(
                                                                       style = rep(("color: black;"),7)))
                                                )
                                       ),
+                                      #enrichments controls
+                                      menuItem(text = "Enrichments",
+                                               icon = icon("bezier-curve"),
+                                               actionButton(inputId = "generateEnrichments",
+                                                            label = "Calculate enrichments",
+                                                            icon = icon("play-circle"),
+                                                            style ="display: block; margin: 0 auto; width: 200px;color: black;"),
+                                               br(),
+                                               div(style = "text: align-left; color: white,", tags$b("Current comparison")),
+                                               verbatimTextOutput(outputId = "enrichment_currentCompareText"),
+                                               br(),
+                                               disabled(actionButton(inputId = "enrichmentCyclePrevious",
+                                                                     label = "Previous",
+                                                                     icon = icon("backward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;"),
+                                                        actionButton(inputId = "enrichmentCycleNext",
+                                                                     label = "Next",
+                                                                     icon = icon("forward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;")),
+                                               br(),
+                                               menuItem(text = "Statistical controls",
+                                                        icon = icon("calculator"),
+                                                        pickerInput(inputId = "webgesalt_orgs",
+                                                                    label = "Choose model organism", 
+                                                                    choices =  listOrganism(),
+                                                                    multiple = FALSE, 
+                                                                    selected = "hsapiens",
+                                                                    choicesOpt = list(
+                                                                      style = rep(("color: black;"),12))),
+                                                        radioButtons(inputId = "webgestalt_tests",
+                                                                     label = "Choose a test",
+                                                                     choices = c("ORA", "GSEA"),
+                                                                     inline = TRUE,
+                                                                     selected = "ORA"),
+                                                        uiOutput("webgestalt_enrichment_variations_render"),
+                                                        radioButtons(inputId = "webgestalt_db",
+                                                                     label = "Choose querry database",
+                                                                     choices = c("Gene onthology" = "gene_onthology",
+                                                                                 "Pathway" = "pathway"),
+                                                                     selected = "pathway"),
+                                                        uiOutput("webgestalt_function"),
+                                                        radioButtons(inputId = "webgestalt_id",
+                                                                     label = "Choose protein identifier",
+                                                                     choices = c("Uniprot" = "uniprotswissprot",
+                                                                                 "Gene name" = "genename"),
+                                                                     selected = "uniprotswissprot", 
+                                                                     inline = TRUE),
+                                                        uiOutput("webgestalt_fdr_render"),
+                                                        uiOutput("webgestalt_fdr_options_render"))
+                                                        ),
                                       menuItem(text = "Download options",
                                                icon = icon("download"),
                                                textInput(inputId = "mainFigDownTitle",
@@ -1007,7 +1054,11 @@ ui <- dashboardPage(
                                               plotOutput("Heatmap"),
                                               downloadButton(outputId = "HMDownloader",
                                                              label = "Download Heatmap",
-                                                             style="color: black;")))
+                                                             style="color: black;"))),
+                                       fluidRow(column(6,
+                                                       plotOutput("webgestalt_plot")),
+                                                column(6,
+                                                       plotOutput("webgestalt_ora")))
                                      ) #fluidpage close
                             ),#Figs close
                             #About us tab
@@ -1028,26 +1079,7 @@ server <- function(input, output, session) {
   options(shiny.sanitize.errors = FALSE)
   #stop(safeError('the user should see this no matter what'))
   ######Welcome tab######
-  
-  ####privacy####
-  oldCookies <- function() {
-    userCookies <- reactive({
-      if (input$cookieChoice == 0) {
-        return(NULL)
-      } else {
-        sendSweetAlert(session,
-                       title = "Preference logged",
-                       type = "success")
-        if (input$cookies == "Disable") {
-          return(NULL)
-        } else {
-          return(tags$head(includeHTML("googleanalytics.html")))
-        }
-      }
-    })
-    
-    output$cookieRender <-  renderUI({userCookies()})
-  }
+
   
   tab1Counters <- reactiveValues(ClickCounter = 0)
   
@@ -1283,143 +1315,6 @@ server <- function(input, output, session) {
   })
   
   #### Data handling ################################################################
-  #functions
-  #filter valid values
-  filterValidVals <- function(x, in_one, user_val) {
-    #count reps and get groups
-    if (in_one == "one_group") {
-      anno_data <- anno_data()
-      #need to keep genenames indexed
-      gene.names <- x$GeneNames
-      x$GeneNames <- NULL
-      
-      colnames(x) <- anno_data$annotation
-      
-      conditions <- as.data.frame(table(unlist(names(x))))
-      conditions <- conditions$Var1
-      
-      cond.filter <- sapply(levels(conditions), function(i) {
-        df2 <- x[, grepl(i, names(x))]
-        counts <- rowSums(is.finite(as.matrix(df2)))
-        counts >= user_val
-      })
-      
-      x$keep = apply(cond.filter, 1, any)
-      
-      x$GeneNames <- gene.names
-      #filter
-      
-      x <- x[!(x$keep=="FALSE"),]
-      x$keep <- NULL
-      x$geneNames <- NULL
-    }
-    
-    if (in_one == "each_group") {
-      anno_data <- anno_data()
-      #need to keep genenames indexed
-      gene.names <- x$GeneNames
-      x$GeneNames <- NULL
-      
-      colnames(x) <- anno_data$annotation
-      
-      
-      conditions <- as.data.frame(table(unlist(names(x))))
-      conditions <- conditions$Var1
-      
-      cond.filter <- sapply(levels(conditions), function(i) {
-        df2 <- x[, grepl(i, names(x))]
-        counts <- rowSums(is.finite(as.matrix(df2)))
-        counts >= user_val
-      })
-      
-      x$keep = apply(cond.filter, 1, all)
-      
-      x$GeneNames <- gene.names
-      #filter
-      
-      x <- x[!(x$keep=="FALSE"),]
-      x$keep <- NULL
-      x$geneNames <- NULL
-    }
-    #in matrix
-    
-    if (in_one == "entire_df") {
-      anno_data <- anno_data()
-      #need to keep genenames indexed
-      gene.names <- x$GeneNames
-      x$GeneNames <- NULL
-      
-      colnames(x) <- anno_data$annotation
-      rows <- rownames(x)
-      
-      x = do.call(data.frame, lapply(x, function(dat) replace(dat, is.infinite(dat), NA)))
-      
-      rownames(x) <- rows
-      colnames(x) <- anno_data$annotation
-      x$GeneNames <- gene.names
-      x = na.omit(x)
-
-    }
-    return(x)
-
-    }
-    
-  #median centering for normalisation
-  center_med = function(x) {
-    kol.name <- as.data.frame(table(unlist(names(x))))
-    kol.name <- as.character(kol.name$Var1)
-    
-    x[, kol.name] = lapply(kol.name, 
-                           function(i){
-                             LOG2 = x[[i]]
-                             LOG2[!is.finite(LOG2)] = NA
-                             gMedian = median(LOG2, na.rm = TRUE)
-                             LOG2 - gMedian
-                           })
-    #x$GeneNames <- gene.names
-    return(x)
-  }
-  
-  #impute by normal distro
-  imputeFunc = function(x, width, downshift, centerMedian) {
-    kol.name <- as.data.frame(table(unlist(names(x))))
-    kol.name <- as.character(kol.name$Var1)
-    
-    
-    set.seed(1)
-    x[kol.name] = lapply(kol.name,
-                         function(y) {
-                           temp = x[[y]]
-                           temp[!is.finite(temp)] = NA
-                           temp.sd = width * sd(temp, na.rm = TRUE)   # shrink sd width
-                           temp.mean = mean(temp, na.rm = TRUE) - 
-                             downshift * sd(temp, na.rm = TRUE)   # shift mean of imputed values
-                           n.missing = sum(is.na(temp))
-                           temp[is.na(temp)] = rnorm(n.missing, mean = temp.mean, sd = temp.sd)                          
-                           return(temp)
-                         })
-    return(x)
-    
-  }
-  
-  abbreviateSTR <- function(value, prefix){  # format string more concisely
-    lst = c()
-    for (item in value) {
-      if (is.nan(item) || is.na(item)) { # if item is NaN return empty string
-        lst <- c(lst, '')
-        next
-      }
-      item <- round(item, 2) # round to two digits
-      if (item == 0) { # if rounding results in 0 clarify
-        item = '<.01'
-      }
-      item <- as.character(item)
-      item <- sub("(^[0])+", "", item)    # remove leading 0: 0.05 -> .05
-      item <- sub("(^-[0])+", "-", item)  # remove leading -0: -0.05 -> -.05
-      lst <- c(lst, paste(prefix, item, sep = ""))
-    }
-    return(lst)
-  }
   
   #control imputations
   observe({
@@ -2750,7 +2645,6 @@ server <- function(input, output, session) {
     }
   })
   
-  
   observeEvent(input$HMCyclePrevious, {
     if (HMCycler$counter > 1) {
       HMCycler$counter <- HMCycler$counter - 1
@@ -2834,6 +2728,147 @@ server <- function(input, output, session) {
     }
    
     })
+  
+  ##########Webgestalt######################
+  observeEvent(input$generateEnrichments, {
+    enable("enrichmentCyclePrevious")
+    enable("enrichmentCycleNext")
+    output$enrichmet_currentCompareText <- renderText(input$hypoTestMat[enrichmentCycler$counter])
+  })
+  
+  enrichmentCycler <- reactiveValues(counter = 1)
+  
+  observeEvent(input$enricmentCyclePrevious, {
+    if (enrichmentCycler$counter > 1) {
+      enrichmentCycler$counter <- enrichmentCycler$counter - 1
+    }
+  })
+  
+  observeEvent(input$enrichmentCycleNext, {
+    if (enrichmentCycler$counter < length(input$hypoTestMat)) {
+      enrichmentCycler$counter <- enrichmentCycler$counter + 1
+    } else if (enrichmentCycler$counter == length(input$hypoTestMat)) {
+      enrichmentCycler$counter <- 1
+    }
+  })
+  
+  
+  output$webgestalt_enrichment_variations_render <- renderUI({
+    if (input$webgestalt_tests == "ORA") {
+      radioButtons(inputId = "enrichment_data_options_ora",
+                   label = "What should be enriched",
+                   choices = c("Upregulated proteins" = "up", 
+                               "Downregulated proteins" = "down",
+                               "All protein IDs" = "all"),
+                   selected = "up")
+    } else {
+      radioButtons(inputId = "enrichment_data_options_gsea",
+                   label = "What should be enriched",
+                   choices = c("Strict" = "strict", 
+                               "Lenient" = "lenient",
+                               "All protein IDs" = "all"),
+                   selected = "strict")
+    }
+    
+  })
+  
+  output$webgestalt_function <- renderUI({
+    if (input$webgestalt_db == "pathway") {
+      pickerInput(inputId = "webgestalt_function_picker",
+                  label = "Choose pathway database", 
+                  choices = c("KEGG" = "pathway_KEGG",
+                              "Panther" = "pathway_Panther", 
+                              "Reactome" = "pathway_reactome"),
+                  selected = "pathway_KEGG",
+                  choicesOpt = list(
+                    style = rep(("color: black;"),3)))
+    } else {
+      pickerInput(inputId = "webgestalt_function_picker",
+                  label = "Choose enrichment database", 
+                  choices = c("Biological processes" = "geneontology_Biological_Process",
+                              "Molecular function" = "geneontology_Molecular_Function",
+                              "Cellular component" = "geneontology_Cellular_Component"),
+                  choicesOpt = list(
+                    style = rep(("color: black;"),3)))
+    } 
+  })
+  
+  output$webgestalt_fdr_render <- renderUI({
+    if (input$webgestalt_tests == "ORA") {
+      radioButtons(inputId = "webgestalt_fdr",
+                   label = "Choose correction method",
+                   choices = c("FDR", "Top"),
+                   selected = "FDR",
+                   inline = TRUE)
+    } else {
+      return(NULL)
+    }
+  })
+  
+  output$webgestalt_fdr_options_render <- renderUI({
+    if (input$webgestalt_fdr == "FDR" && input$webgestalt_tests == "ORA") {
+      pickerInput(inputId = "webgestalt_fdr_options",
+                  label = "Choose FDR options", 
+                  choices = c(p.adjust.methods[1:6]),
+                  selected = "BH",
+                  choicesOpt = list(
+                  style = rep(("color: black;"),6)))
+    } else {
+      return(NULL)
+    }
+  })
+  
+  
+  
+  enrichment_data <- reactive({
+    if (input$generateEnrichments > 0) {
+      datList <- list()
+      for (i in 1:length(input$hypoTestMat)) {
+        fit2 <- statsTestedData()
+        statComb <- statComb()
+        
+        d.out <- data.frame(ID = names(fit2$coefficients[,i]),
+                            pValue = fit2$p.value[,i],
+                            qValue = p.adjust(fit2$p.value[,i], input$pvalAdjust),
+                            EffectSize = fit2$coefficients[,i],
+                            comparison = statComb[i])
+        d.out <- mutate(d.out, 
+                        sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
+                                     ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
+        
+        
+        d2 <- data.frame(d.out,
+                         colsplit(string = d.out$ID, 
+                                  pattern = "_", 
+                                  names = c("UniprotID", "GeneName")))
+        
+        datName <- input$hypoTestMat[i]
+        datList[[datName]] = d2
+        
+      }
+      
+      
+    }
+    
+    .y <- function(){
+      WebGestaltR(enrichMethod = input$webgestalt_tests,
+                  enrichDatabase = input$webgestalt_function_picker,
+                  organism = input$webgestalt_orgs,
+                  referenceGeneType = input$webgestalt_id,
+                  referenceSet = "genome_protein-coding", #ORA specific
+                  sigMethod = input$webgestalt_fdr, #ORA specific
+                  fdrMethod = input$webgestalt_fdr_options, #ORA specific,
+                  )
+    }
+  })
+  
+  
+  output$webgestalt_plot <- renderPlot({
+    return(NULL)
+  })
+  output$webgestalt_ora <- renderPlot({
+    return(NULL)
+  })
   
   ##########data handling download##########
   #processed data
