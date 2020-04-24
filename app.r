@@ -2,6 +2,11 @@
 #library(BiocManager)
 #options(repos = BiocManager::repositories())
 #Libraries we need
+
+#Modal doesnt load when tut is loaded, need to rename files for it to work.
+#Double check the javascript
+#finish the enrichment build
+
 require(shinydashboard)
 require(shiny)
 library(tidyr)
@@ -2755,19 +2760,25 @@ server <- function(input, output, session) {
   
   output$webgestalt_enrichment_variations_render <- renderUI({
     if (input$webgestalt_tests == "ORA") {
-      radioButtons(inputId = "enrichment_data_options_ora",
-                   label = "What should be enriched",
-                   choices = c("Upregulated proteins" = "up", 
-                               "Downregulated proteins" = "down",
-                               "All protein IDs" = "all"),
-                   selected = "up")
+      pickerInput(inputId = "enrichment_data_options_ora",
+                  label = "What should be enriched", 
+                  c("Upregulated proteins" = "up", 
+                    "Downregulated proteins" = "down",
+                    "All protein IDs" = "all"),
+                  selected = "up",
+                  multiple = FALSE,
+                  choicesOpt = list(
+                    style = rep(("color: black;"),3)))
     } else {
-      radioButtons(inputId = "enrichment_data_options_gsea",
-                   label = "What should be enriched",
-                   choices = c("Strict" = "strict", 
-                               "Lenient" = "lenient",
-                               "All protein IDs" = "all"),
-                   selected = "strict")
+      pickerInput(inputId = "enrichment_data_options_gsea",
+                  label = "What should be enriched", 
+                  c("Strict" = "strict", 
+                    "Lenient" = "lenient",
+                    "All protein IDs" = "all"),
+                  selected = "strict",
+                  multiple = FALSE,
+                  choicesOpt = list(
+                    style = rep(("color: black;"),3)))
     }
     
   })
