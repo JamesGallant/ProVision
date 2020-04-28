@@ -30,7 +30,7 @@ require(zip)
 require(xlsx)
 require(WebGestaltR)
 
-source(file = "Www/scripts/functions.r")
+
 
 #user interface starts here
 ui <- dashboardPage(
@@ -679,7 +679,7 @@ ui <- dashboardPage(
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
                                                br(),
                                                div(style = "text: align-left; color: white,", tags$b("Current comparison")),
-                                               verbatimTextOutput(outputId = "enrichment_currentCompareText"),
+                                               verbatimTextOutput(outputId = "enrichmet_currentCompareText"),
                                                br(),
                                                disabled(actionButton(inputId = "enrichmentCyclePrevious",
                                                                      label = "Previous",
@@ -1082,6 +1082,143 @@ server <- function(input, output, session) {
   ######Upload limit#####
   options(shiny.maxRequestSize=30*1024^2)
   options(shiny.sanitize.errors = FALSE)
+ 
+  
+  filterValidVals <- function(x, in_one, user_val) {
+    #count reps and get groups
+    if (in_one == "one_group") {
+      anno_data <- anno_data()
+      #need to keep genenames indexed
+      gene.names <- x$GeneNames
+      x$GeneNames <- NULL
+      
+      colnames(x) <- anno_data$annotation
+      
+      conditions <- as.data.frame(table(unlist(names(x))))
+      conditions <- conditions$Var1
+      
+      cond.filter <- sapply(levels(conditions), function(i) {
+        df2 <- x[, grepl(i, names(x))]
+        counts <- rowSums(is.finite(as.matrix(df2)))
+        counts >= user_val
+      })
+      
+      x$keep = apply(cond.filter, 1, any)
+      
+      x$GeneNames <- gene.names
+      #filter
+      
+      x <- x[!(x$keep=="FALSE"),]
+      x$keep <- NULL
+      x$geneNames <- NULL
+    }
+    
+    if (in_one == "each_group") {
+      anno_data <- anno_data()
+      #need to keep genenames indexed
+      gene.names <- x$GeneNames
+      x$GeneNames <- NULL
+      
+      colnames(x) <- anno_data$annotation
+      
+      
+      conditions <- as.data.frame(table(unlist(names(x))))
+      conditions <- conditions$Var1
+      
+      cond.filter <- sapply(levels(conditions), function(i) {
+        df2 <- x[, grepl(i, names(x))]
+        counts <- rowSums(is.finite(as.matrix(df2)))
+        counts >= user_val
+      })
+      
+      x$keep = apply(cond.filter, 1, all)
+      
+      x$GeneNames <- gene.names
+      #filter
+      
+      x <- x[!(x$keep=="FALSE"),]
+      x$keep <- NULL
+      x$geneNames <- NULL
+    }
+    #in matrix
+    
+    if (in_one == "entire_df") {
+      anno_data <- anno_data()
+      #need to keep genenames indexed
+      gene.names <- x$GeneNames
+      x$GeneNames <- NULL
+      
+      colnames(x) <- anno_data$annotation
+      rows <- rownames(x)
+      
+      x = do.call(data.frame, lapply(x, function(dat) replace(dat, is.infinite(dat), NA)))
+      
+      rownames(x) <- rows
+      colnames(x) <- anno_data$annotation
+      x$GeneNames <- gene.names
+      x = na.omit(x)
+      
+    }
+    return(x)
+    
+  }
+  
+  center_med = function(x) {
+    kol.name <- as.data.frame(table(unlist(names(x))))
+    kol.name <- as.character(kol.name$Var1)
+    
+    x[, kol.name] = lapply(kol.name, 
+                           function(i){
+                             LOG2 = x[[i]]
+                             LOG2[!is.finite(LOG2)] = NA
+                             gMedian = median(LOG2, na.rm = TRUE)
+                             LOG2 - gMedian
+                           })
+    #x$GeneNames <- gene.names
+    return(x)
+  }
+  
+  imputeFunc = function(x, width, downshift, centerMedian) {
+    kol.name <- as.data.frame(table(unlist(names(x))))
+    kol.name <- as.character(kol.name$Var1)
+    
+    
+    set.seed(1)
+    x[kol.name] = lapply(kol.name,
+                         function(y) {
+                           temp = x[[y]]
+                           temp[!is.finite(temp)] = NA
+                           temp.sd = width * sd(temp, na.rm = TRUE)   # shrink sd width
+                           temp.mean = mean(temp, na.rm = TRUE) - 
+                             downshift * sd(temp, na.rm = TRUE)   # shift mean of imputed values
+                           n.missing = sum(is.na(temp))
+                           temp[is.na(temp)] = rnorm(n.missing, mean = temp.mean, sd = temp.sd)                          
+                           return(temp)
+                         })
+    return(x)
+    
+  }
+  
+  abbreviateSTR <- function(value, prefix){  # format string more concisely
+    lst = c()
+    for (item in value) {
+      if (is.nan(item) || is.na(item)) { # if item is NaN return empty string
+        lst <- c(lst, '')
+        next
+      }
+      item <- round(item, 2) # round to two digits
+      if (item == 0) { # if rounding results in 0 clarify
+        item = '<.01'
+      }
+      item <- as.character(item)
+      item <- sub("(^[0])+", "", item)    # remove leading 0: 0.05 -> .05
+      item <- sub("(^-[0])+", "-", item)  # remove leading -0: -0.05 -> -.05
+      lst <- c(lst, paste(prefix, item, sep = ""))
+    }
+    return(lst)
+  }
+  
+  
   #stop(safeError('the user should see this no matter what'))
   ######Welcome tab######
 
@@ -2350,6 +2487,7 @@ server <- function(input, output, session) {
                                   pattern = "_", 
                                   names = c("UniprotID", "GeneName")))
         
+        
         if (input$volclabelNoOfSig > 0) {
           
           if (input$volcSigLabels == "Upregulated") {
@@ -2735,13 +2873,10 @@ server <- function(input, output, session) {
     })
   
   ##########Webgestalt######################
-  observeEvent(input$generateEnrichments, {
-    enable("enrichmentCyclePrevious")
-    enable("enrichmentCycleNext")
-    output$enrichmet_currentCompareText <- renderText(input$hypoTestMat[enrichmentCycler$counter])
-  })
-  
-  enrichmentCycler <- reactiveValues(counter = 1)
+
+  enrichmentCycler <- reactiveValues(counter = 1, 
+                                     calculate = 1,
+                                     previous_calculation = 0)
   
   observeEvent(input$enricmentCyclePrevious, {
     if (enrichmentCycler$counter > 1) {
@@ -2755,6 +2890,12 @@ server <- function(input, output, session) {
     } else if (enrichmentCycler$counter == length(input$hypoTestMat)) {
       enrichmentCycler$counter <- 1
     }
+  })
+  
+  observeEvent(input$generateEnrichments, {
+    enable("enrichmentCyclePrevious")
+    enable("enrichmentCycleNext")
+    output$enrichmet_currentCompareText <- renderText(input$hypoTestMat[enrichmentCycler$counter])
   })
   
   
@@ -2817,7 +2958,7 @@ server <- function(input, output, session) {
   })
   
   output$webgestalt_fdr_options_render <- renderUI({
-    if (input$webgestalt_fdr == "FDR" && input$webgestalt_tests == "ORA") {
+    if (input$webgestalt_tests == "ORA" && input$webgestalt_fdr == "FDR") {
       pickerInput(inputId = "webgestalt_fdr_options",
                   label = "Choose FDR options", 
                   choices = c(p.adjust.methods[1:6]),
@@ -2830,10 +2971,10 @@ server <- function(input, output, session) {
   })
   
   
-  
-  enrichment_data <- reactive({
+  #This is still a demo, reworking starts here
+  encrichment_input_data <- reactive({
     if (input$generateEnrichments > 0) {
-      datList <- list()
+      enrichment_data_list <- list()
       for (i in 1:length(input$hypoTestMat)) {
         fit2 <- statsTestedData()
         statComb <- statComb()
@@ -2853,30 +2994,146 @@ server <- function(input, output, session) {
                                   pattern = "_", 
                                   names = c("UniprotID", "GeneName")))
         
-        datName <- input$hypoTestMat[i]
-        datList[[datName]] = d2
+        enrichment_data_name <- input$hypoTestMat[i]
+        enrichment_data_list[[enrichment_data_name]] = d2
         
+      } # for loop close
+      
+      
+      enrichment_target_df <- enrichment_data_list[[enrichmentCycler$counter]]
+      
+    }
+    return(enrichment_target_df)
+  })
+  
+  #This works but is not optimal. needs some reworking
+  enrichment_data <- reactive({
+    if (input$generateEnrichments > 0) {
+      enrichment_data_list <- list()
+      for (i in 1:length(input$hypoTestMat)) {
+        fit2 <- statsTestedData()
+        statComb <- statComb()
+        
+        d.out <- data.frame(ID = names(fit2$coefficients[,i]),
+                            pValue = fit2$p.value[,i],
+                            qValue = p.adjust(fit2$p.value[,i], input$pvalAdjust),
+                            EffectSize = fit2$coefficients[,i],
+                            comparison = statComb[i])
+        d.out <- mutate(d.out, 
+                        Significant = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
+                                     ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
+        
+        
+        d2 <- data.frame(d.out,
+                         colsplit(string = d.out$ID, 
+                                  pattern = "_", 
+                                  names = c("UniprotID", "GeneName")))
+    
+        enrichment_data_name <- input$hypoTestMat[i]
+        enrichment_data_list[[enrichment_data_name]] = d2
+        
+      } # for loop close
+      
+      
+      enrichment_target_df <- enrichment_data_list[[enrichmentCycler$counter]]
+      
+      
+      if (input$webgestalt_tests == "ORA") {
+        
+        enrichment_target_df_down = enrichment_target_df %>%
+          filter(Significant == "Downregulated") %>%
+          select(UniprotID)
+        
+        
+        enrichment_target_df_up = enrichment_target_df %>%
+          filter(Significant == "Upregulated") %>%
+          select(UniprotID)
+        
+        
+        enrichment_target_list_up <- lapply(1:length(rownames(enrichment_target_df_up)), function(x){
+          return(enrichment_target_df_up[x,])
+        })
+        
+        enrichment_target_list_down <- lapply(1:length(rownames(enrichment_target_df_down)), function(x){
+          return(enrichment_target_df_down[x,])
+        })
+        
+        
+        enrichment_out_up <- WebGestaltR(enrichMethod = "ORA",
+                                         interestGene = enrichment_target_list_up,
+                                         isOutput = FALSE,
+                                         interestGeneType = "uniprotswissprot",
+                                         enrichDatabase = "geneontology_Biological_Process",
+                                         organism = "hsapiens",
+                                         referenceSet = "genome_protein-coding",
+                                         projectName = "User",
+                                         sigMethod = "fdr",
+                                         fdrMethod = "BH",
+                                         fdrThr = 0.05)
+        
+        enrichment_out_down <- WebGestaltR(enrichMethod = "ORA",
+                                           interestGene = enrichment_target_list_down,
+                                           isOutput = FALSE,
+                                           interestGeneType = "uniprotswissprot",
+                                           enrichDatabase = "geneontology_Biological_Process",
+                                           organism = "hsapiens",
+                                           referenceSet = "genome_protein-coding",
+                                           projectName = "User",
+                                           sigMethod = "fdr",
+                                           fdrMethod = "BH",
+                                           fdrThr = 0.05)
+        
+        if (!is.null(enrichment_out_up)) {
+          enrichment_out_up = enrichment_out_up %>%
+            arrange(desc(enrichmentRatio)) %>%
+            top_n(10)
+        }
+        
+        if (!is.null(enrichment_out_down)) {
+          enrichment_out_down = enrichment_out_down %>%
+            arrange(desc(enrichmentRatio)) %>%
+            top_n(10)
+          
+          enrichment_out_down$enrichmentRatio <- enrichment_out_down$enrichmentRatio * - 1
+          
+        }
+        
+        enrichment_out_data <- rbind(enrichment_out_up, enrichment_out_down)
+        print(head(enrichment_out_data))
+        
+        enrichment_out_plot <- ggplot(enrichment_out_data, aes(x = enrichmentRatio, 
+                                                               y = description, fill = "red"),
+                                      geom_bar())
       }
       
-      
-    }
+    } # enrichment started
     
     .y <- function(){
-      WebGestaltR(enrichMethod = input$webgestalt_tests,
-                  enrichDatabase = input$webgestalt_function_picker,
-                  organism = input$webgestalt_orgs,
-                  referenceGeneType = input$webgestalt_id,
-                  referenceSet = "genome_protein-coding", #ORA specific
-                  sigMethod = input$webgestalt_fdr, #ORA specific
-                  fdrMethod = input$webgestalt_fdr_options, #ORA specific,
-                  )
+      
+      enrichment_out <- WebGestaltR(enrichMethod = input$webgestalt_tests,
+                                    interestGene = enrichment_target_df$UniprotID,
+                                    enrichDatabase = input$webgestalt_function_picker,
+                                    organism = input$webgestalt_orgs,
+                                    referenceGeneType = input$webgestalt_id,
+                                    referenceSet = "genome_protein-coding", #ORA specific
+                                    sigMethod = input$webgestalt_fdr, #ORA specific
+                                    fdrMethod = input$webgestalt_fdr_options, #ORA specific,
+      )
     }
+    
+    return(enrichment_out_plot)
   })
   
   
   output$webgestalt_plot <- renderPlot({
-    return(NULL)
+    if (is.null(enrichment_data())) {
+      return(NULL)
+    } else {
+      enrichment_data()
+    }
   })
+  
+  
   output$webgestalt_ora <- renderPlot({
     return(NULL)
   })
@@ -2964,9 +3221,9 @@ server <- function(input, output, session) {
       if (input$SigDataDownName == "") {
         if (input$SigDataDownType == "xlsx") {
           
-          n = paste(Sys.Date(), "-", "Statistics-",hypoTestMat[statsCycler$counter], ".", "xlsx", sep = "")
+          n = paste(Sys.Date(), "-", "Statistics-",input$hypoTestMat[statsCycler$counter], ".", "xlsx", sep = "")
         } else {
-          n = paste(Sys.Date(), "-", "Statistics-",hypoTestMat[statsCycler$counter], ".", "txt", sep = "")
+          n = paste(Sys.Date(), "-", "Statistics-",input$hypoTestMat[statsCycler$counter], ".", "txt", sep = "")
         }
       } else {
         if (input$SigDataDownType == "xlsx") {
