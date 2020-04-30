@@ -29,6 +29,7 @@ require(rJava)
 require(zip)
 require(xlsx)
 require(WebGestaltR)
+require(shinycssloaders)
 
 
 
@@ -673,8 +674,9 @@ ui <- dashboardPage(
                                       #enrichments controls
                                       menuItem(text = "Enrichments",
                                                icon = icon("bezier-curve"),
+                                               div(style = "text: align-left; color: white,", tags$b("Powered by webgestalt")),
                                                actionButton(inputId = "generateEnrichments",
-                                                            label = "Calculate enrichments",
+                                                            label = "start",
                                                             icon = icon("play-circle"),
                                                             style ="display: block; margin: 0 auto; width: 200px;color: black;"),
                                                br(),
@@ -690,36 +692,37 @@ ui <- dashboardPage(
                                                                      icon = icon("forward"),
                                                                      style="display:inline-block;width:40%;text-align: center;")),
                                                br(),
-                                               menuItem(text = "Statistical controls",
-                                                        icon = icon("calculator"),
-                                                        pickerInput(inputId = "webgesalt_orgs",
-                                                                    label = "Choose model organism", 
-                                                                    choices =  listOrganism(),
-                                                                    multiple = FALSE, 
-                                                                    selected = "hsapiens",
-                                                                    choicesOpt = list(
-                                                                      style = rep(("color: black;"),12))),
-                                                        radioButtons(inputId = "webgestalt_tests",
-                                                                     label = "Choose a test",
-                                                                     choices = c("ORA", "GSEA"),
-                                                                     inline = TRUE,
-                                                                     selected = "ORA"),
-                                                        uiOutput("webgestalt_enrichment_variations_render"),
-                                                        radioButtons(inputId = "webgestalt_db",
-                                                                     label = "Choose querry database",
-                                                                     choices = c("Gene onthology" = "gene_onthology",
-                                                                                 "Pathway" = "pathway"),
-                                                                     selected = "pathway"),
-                                                        uiOutput("webgestalt_function"),
-                                                        radioButtons(inputId = "webgestalt_id",
-                                                                     label = "Choose protein identifier",
-                                                                     choices = c("Uniprot" = "uniprotswissprot",
-                                                                                 "Gene name" = "genename"),
-                                                                     selected = "uniprotswissprot", 
-                                                                     inline = TRUE),
-                                                        uiOutput("webgestalt_fdr_render"),
-                                                        uiOutput("webgestalt_fdr_options_render"))
-                                                        ),
+                                               pickerInput(inputId = "webgesalt_orgs",
+                                                           label = "Choose model organism", 
+                                                           choices =  listOrganism(),
+                                                           multiple = FALSE, 
+                                                           selected = "hsapiens",
+                                                           choicesOpt = list(
+                                                             style = rep(("color: black;"),12))),
+                                               radioButtons(inputId = "webgestalt_tests",
+                                                            label = "Choose a test",
+                                                            choices = c("ORA", "GSEA"),
+                                                            inline = TRUE,
+                                                            selected = "ORA"),
+                                               uiOutput("webgestalt_enrichment_variations_render"),
+                                               radioButtons(inputId = "webgestalt_db",
+                                                            label = "Choose querry database",
+                                                            choices = c("Gene onthology" = "gene_onthology",
+                                                                        "Pathway" = "pathway"),
+                                                            selected = "pathway"),
+                                               uiOutput("webgestalt_function"),
+                                               uiOutput("webgestalt_fdr_render"),
+                                               sliderInput(inputId = "webgestalt_top_n_slider",
+                                                           label = "Plot top n enrichments",
+                                                           min = 1, max = 30, step = 1,
+                                                           value = 10),
+                                               uiOutput("webgestalt_plotting_slider"),
+                                               uiOutput("webgestalt_sig_slider"),
+                                               uiOutput("webgestalt_fdr_options_render"),
+                                               actionButton(inputId = "calculateEnrichments",
+                                                            label = "Calculate",
+                                                            icon = icon("play-circle"),
+                                                            style ="display: block; margin: 0 auto; width: 200px;color: black;")),
                                       menuItem(text = "Download options",
                                                icon = icon("download"),
                                                textInput(inputId = "mainFigDownTitle",
@@ -1060,10 +1063,47 @@ ui <- dashboardPage(
                                               downloadButton(outputId = "HMDownloader",
                                                              label = "Download Heatmap",
                                                              style="color: black;"))),
-                                       fluidRow(column(6,
-                                                       plotOutput("webgestalt_plot")),
-                                                column(6,
-                                                       plotOutput("webgestalt_ora")))
+                                       fluidRow(column(9,
+                                                       plotOutput("webgestalt_plot") %>%
+                                                         withSpinner(type = 3, color.background = '#ECEFF4')),
+                                                column(3,
+                                                       fluidPage(fluidRow(
+                                                         column(4,
+                                                                pickerInput(inputId = "webgestalt_ora_yaxis",
+                                                                            label = "Y axis",
+                                                                            choices = c("Description" = "description",
+                                                                                        "Enrichment ratio" = "enrichmentRatio",
+                                                                                        "P-value" = "pValue",
+                                                                                        "False discovery rate" = "FDR"),
+                                                                            selected = "enrichmentRatio",
+                                                                            multiple = FALSE,
+                                                                            
+                                                                            options = list(`actions-box` = TRUE, 
+                                                                                           `selected-text-format` = "count > 0"),
+                                                                            choicesOpt = list(
+                                                                              style = rep(("color: black;"), 4)))
+                                                                ),
+                                                         column(4,
+                                                                  textInput(inputId = "webgestalt_x_label",
+                                                                            label = "x-axis label",
+                                                                            placeholder = "Enrichment Ratio")
+                                                                ),
+                                                         column(4,
+                                                                textInput(inputId = "webgestalt_y_label",
+                                                                          label = "y-axis label",
+                                                                          placeholder = "Description")
+                                                                ),
+                                                         fluidRow(column(6,
+                                                                         colourInput(inputId = "webgestalt_colour_fill",
+                                                                                     label = "Choose fill colour",
+                                                                                     showColour = "both",
+                                                                                     palette = "limited",
+                                                                                     value = "blue")
+                                                                         )),
+                                                       ))
+                                                       
+                                                       )
+                                                )
                                      ) #fluidpage close
                             ),#Figs close
                             #About us tab
@@ -2873,6 +2913,61 @@ server <- function(input, output, session) {
     })
   
   ##########Webgestalt######################
+  
+  ora_list <- function(ora_data, regulation) {
+    df = ora_data %>% 
+      filter(significant == regulation) %>%
+      select(UniprotID)
+    
+    enrichment_list <- lapply(1:length(rownames(df)), function(x){
+      return(df[x,])
+    })
+    
+    return(enrichment_list)
+  }
+  
+  webbestaltEnrichment <- function(data, test){
+    if (input$webgestalt_tests == "ORA") {
+      if (input$webgestalt_fdr == "fdr") {
+        WebGestaltR(enrichMethod = "ORA",
+                    interestGene = data,
+                    isOutput = FALSE,
+                    interestGeneType = "uniprotswissprot",
+                    enrichDatabase = input$webgestalt_function_picker,
+                    organism = input$webgesalt_orgs,
+                    referenceSet = "genome_protein-coding",
+                    projectName = "User",
+                    sigMethod = input$webgestalt_fdr,
+                    fdrMethod = input$webgestalt_fdr_options,
+                    fdrThr = as.numeric(input$webgestalt_sig_radio_out)
+        )
+      } else {
+        WebGestaltR(enrichMethod = "ORA",
+                    interestGene = data,
+                    isOutput = FALSE,
+                    interestGeneType = "uniprotswissprot",
+                    enrichDatabase = input$webgestalt_function_picker,
+                    organism = input$webgesalt_orgs,
+                    referenceSet = "genome_protein-coding",
+                    projectName = "User",
+                    sigMethod = input$webgestalt_fdr,
+                    fdrMethod = input$webgestalt_fdr_options,
+                    topThr = input$webgestalt_top_n_slider
+        )
+      }
+      
+    }
+
+    
+  }
+  
+  error_message_webgestalt <- function(inputCall) {
+    err_input <- unlist(strsplit(inputCall, "_"))
+    err_input2 <- paste(err_input[2], err_input[1], sep = " ")
+    return(paste("No", err_input2, "was enriched", sep = " ")) 
+  }
+  
+  
 
   enrichmentCycler <- reactiveValues(counter = 1, 
                                      calculate = 1,
@@ -2903,10 +2998,10 @@ server <- function(input, output, session) {
     if (input$webgestalt_tests == "ORA") {
       pickerInput(inputId = "enrichment_data_options_ora",
                   label = "What should be enriched", 
-                  c("Upregulated proteins" = "up", 
-                    "Downregulated proteins" = "down",
-                    "All protein IDs" = "all"),
-                  selected = "up",
+                  c("All protein IDs" = "all",
+                    "Upregulated proteins" = "up", 
+                    "Downregulated proteins" = "down"),
+                  selected = "all",
                   multiple = FALSE,
                   choicesOpt = list(
                     style = rep(("color: black;"),3)))
@@ -2930,10 +3025,11 @@ server <- function(input, output, session) {
                   label = "Choose pathway database", 
                   choices = c("KEGG" = "pathway_KEGG",
                               "Panther" = "pathway_Panther", 
-                              "Reactome" = "pathway_reactome"),
+                              "Reactome" = "pathway_Reactome",
+                              "Wiki pathway" = "pathway_Wikipathway"),
                   selected = "pathway_KEGG",
                   choicesOpt = list(
-                    style = rep(("color: black;"),3)))
+                    style = rep(("color: black;"),4)))
     } else {
       pickerInput(inputId = "webgestalt_function_picker",
                   label = "Choose enrichment database", 
@@ -2949,8 +3045,9 @@ server <- function(input, output, session) {
     if (input$webgestalt_tests == "ORA") {
       radioButtons(inputId = "webgestalt_fdr",
                    label = "Choose correction method",
-                   choices = c("FDR", "Top"),
-                   selected = "FDR",
+                   choices = c("False discovery rate" = "fdr",
+                               "Top" = "top"),
+                   selected = "fdr",
                    inline = TRUE)
     } else {
       return(NULL)
@@ -2958,9 +3055,9 @@ server <- function(input, output, session) {
   })
   
   output$webgestalt_fdr_options_render <- renderUI({
-    if (input$webgestalt_tests == "ORA" && input$webgestalt_fdr == "FDR") {
+    if (input$webgestalt_tests == "ORA" && input$webgestalt_fdr == "fdr") {
       pickerInput(inputId = "webgestalt_fdr_options",
-                  label = "Choose FDR options", 
+                  label = "Choose enrichment FDR cut off", 
                   choices = c(p.adjust.methods[1:6]),
                   selected = "BH",
                   choicesOpt = list(
@@ -2970,8 +3067,17 @@ server <- function(input, output, session) {
     }
   })
   
+  output$webgestalt_sig_slider <- renderUI({
+    if (input$webgestalt_tests == "ORA" && input$webgestalt_fdr == "fdr") {
+      radioButtons(inputId = "webgestalt_sig_radio_out",
+                   label = "Choose test FDR cut-off",
+                   choices = c(0.01, 0.05),
+                   selected = 0.05,
+                   inline = TRUE)
+    }
+  })
   
-  #This is still a demo, reworking starts here
+  
   encrichment_input_data <- reactive({
     if (input$generateEnrichments > 0) {
       enrichment_data_list <- list()
@@ -2985,7 +3091,7 @@ server <- function(input, output, session) {
                             EffectSize = fit2$coefficients[,i],
                             comparison = statComb[i])
         d.out <- mutate(d.out, 
-                        sig = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
+                        significant = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
                                      ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
         
         
@@ -3003,136 +3109,137 @@ server <- function(input, output, session) {
       enrichment_target_df <- enrichment_data_list[[enrichmentCycler$counter]]
       
     }
+   
     return(enrichment_target_df)
   })
   
-  #This works but is not optimal. needs some reworking
-  enrichment_data <- reactive({
-    if (input$generateEnrichments > 0) {
-      enrichment_data_list <- list()
-      for (i in 1:length(input$hypoTestMat)) {
-        fit2 <- statsTestedData()
-        statComb <- statComb()
-        
-        d.out <- data.frame(ID = names(fit2$coefficients[,i]),
-                            pValue = fit2$p.value[,i],
-                            qValue = p.adjust(fit2$p.value[,i], input$pvalAdjust),
-                            EffectSize = fit2$coefficients[,i],
-                            comparison = statComb[i])
-        d.out <- mutate(d.out, 
-                        Significant = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
-                                     ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non significant")))
+  enrichment_data <- eventReactive(input$calculateEnrichments, {
+    encrichment_input_data <- encrichment_input_data()
+    if (input$webgestalt_tests == "ORA") {
+      if (input$enrichment_data_options_ora == "up") {
+        enrichment_target_list_up <- ora_list(ora_data = encrichment_input_data,
+                                              regulation = "Upregulated")
         
         
-        d2 <- data.frame(d.out,
-                         colsplit(string = d.out$ID, 
-                                  pattern = "_", 
-                                  names = c("UniprotID", "GeneName")))
-    
-        enrichment_data_name <- input$hypoTestMat[i]
-        enrichment_data_list[[enrichment_data_name]] = d2
+        enrichment_out_up <- webbestaltEnrichment(data = enrichment_target_list_up,
+                                                  test = input$webgestalt_tests)
         
-      } # for loop close
-      
-      
-      enrichment_target_df <- enrichment_data_list[[enrichmentCycler$counter]]
-      
-      
-      if (input$webgestalt_tests == "ORA") {
-        
-        enrichment_target_df_down = enrichment_target_df %>%
-          filter(Significant == "Downregulated") %>%
-          select(UniprotID)
-        
-        
-        enrichment_target_df_up = enrichment_target_df %>%
-          filter(Significant == "Upregulated") %>%
-          select(UniprotID)
-        
-        
-        enrichment_target_list_up <- lapply(1:length(rownames(enrichment_target_df_up)), function(x){
-          return(enrichment_target_df_up[x,])
-        })
-        
-        enrichment_target_list_down <- lapply(1:length(rownames(enrichment_target_df_down)), function(x){
-          return(enrichment_target_df_down[x,])
-        })
-        
-        
-        enrichment_out_up <- WebGestaltR(enrichMethod = "ORA",
-                                         interestGene = enrichment_target_list_up,
-                                         isOutput = FALSE,
-                                         interestGeneType = "uniprotswissprot",
-                                         enrichDatabase = "geneontology_Biological_Process",
-                                         organism = "hsapiens",
-                                         referenceSet = "genome_protein-coding",
-                                         projectName = "User",
-                                         sigMethod = "fdr",
-                                         fdrMethod = "BH",
-                                         fdrThr = 0.05)
-        
-        enrichment_out_down <- WebGestaltR(enrichMethod = "ORA",
-                                           interestGene = enrichment_target_list_down,
-                                           isOutput = FALSE,
-                                           interestGeneType = "uniprotswissprot",
-                                           enrichDatabase = "geneontology_Biological_Process",
-                                           organism = "hsapiens",
-                                           referenceSet = "genome_protein-coding",
-                                           projectName = "User",
-                                           sigMethod = "fdr",
-                                           fdrMethod = "BH",
-                                           fdrThr = 0.05)
         
         if (!is.null(enrichment_out_up)) {
           enrichment_out_up = enrichment_out_up %>%
             arrange(desc(enrichmentRatio)) %>%
-            top_n(10)
+            top_n(input$webgestalt_top_n_slider)
         }
+        
+        validate(
+          need(enrichment_out_up$FDR,
+               message = error_message_webgestalt(inputCall = input$webgestalt_function_picker))
+        )
+        
+        
+        return(enrichment_out_up)
+        
+      } else if (input$enrichment_data_options_ora == "down") {
+        
+        enrichment_target_list_down <- ora_list(ora_data = encrichment_input_data,
+                                             regulation = "Downregulated")
+        
+        
+        enrichment_out_down <- webbestaltEnrichment(data = enrichment_target_list_down,
+                                                  test = input$webgestalt_tests)
+        
         
         if (!is.null(enrichment_out_down)) {
+          print(head(enrichment_out_down))
           enrichment_out_down = enrichment_out_down %>%
             arrange(desc(enrichmentRatio)) %>%
-            top_n(10)
+            top_n(input$webgestalt_top_n_slider)
           
-          enrichment_out_down$enrichmentRatio <- enrichment_out_down$enrichmentRatio * - 1
-          
+          print(head(enrichment_out_down))
         }
         
-        enrichment_out_data <- rbind(enrichment_out_up, enrichment_out_down)
-        print(head(enrichment_out_data))
+        validate(
+          need(enrichment_out_down$FDR,
+               message = error_message_webgestalt(inputCall = input$webgestalt_function_picker))
+        )
         
-        enrichment_out_plot <- ggplot(enrichment_out_data, aes(x = enrichmentRatio, 
-                                                               y = description, fill = "red"),
-                                      geom_bar())
+        
+        return(enrichment_out_down)
+        
+      } else {
+        
+        enrichment_target_list_up <- ora_list(ora_data = encrichment_input_data,
+                                              regulation = "Upregulated")
+        
+        enrichment_target_list_down <- ora_list(ora_data = encrichment_input_data,
+                                                regulation = "Downregulated")
+        
+        
+        enrichment_out_up <- webbestaltEnrichment(data = enrichment_target_list_up,
+                                                  test = input$webgestalt_tests)
+        
+        
+        if (!is.null(enrichment_out_up)) {
+          enrichment_out_up = enrichment_out_up %>%
+            arrange(desc(enrichmentRatio)) %>%
+            top_n(input$webgestalt_top_n_slider)
+        }  
+        
+        enrichment_out_down <- webbestaltEnrichment(data = enrichment_target_list_down,
+                                                    test = input$webgestalt_tests)
+        
+        
+        if (!is.null(enrichment_out_down)) {
+          enrichment_out_down$enrichmentRatio <- enrichment_out_down$enrichmentRatio * - 1
+          enrichment_out_down = enrichment_out_down %>%
+            arrange(enrichmentRatio) %>%
+            top_n(input$webgestalt_top_n_slider)
+        }
+        
+        
+        enrichment_out_data <- rbind(enrichment_out_up, enrichment_out_down)
+        
+        
+        validate(
+          need(enrichment_out_data$FDR,
+               message = error_message_webgestalt(inputCall = input$webgestalt_function_picker))
+        )
+        
+        
+        return(enrichment_out_data)  
+        
       }
       
-    } # enrichment started
-    
-    .y <- function(){
-      
-      enrichment_out <- WebGestaltR(enrichMethod = input$webgestalt_tests,
-                                    interestGene = enrichment_target_df$UniprotID,
-                                    enrichDatabase = input$webgestalt_function_picker,
-                                    organism = input$webgestalt_orgs,
-                                    referenceGeneType = input$webgestalt_id,
-                                    referenceSet = "genome_protein-coding", #ORA specific
-                                    sigMethod = input$webgestalt_fdr, #ORA specific
-                                    fdrMethod = input$webgestalt_fdr_options, #ORA specific,
-      )
     }
-    
-    return(enrichment_out_plot)
   })
   
+  
+  enrichment_plot <- reactive({
+    enrichment_data <- enrichment_data()
+    if (input$webgestalt_tests == "ORA") {
+
+      p <- ggplot(enrichment_data(), aes_string(x = paste0("reorder(description", 
+                                                           ",", 
+                                                           "-",
+                                                           input$webgestalt_ora_yaxis,")"),
+                                         y = input$webgestalt_ora_yaxis)) +
+        geom_bar(stat = "identity", fill = input$webgestalt_colour_fill, colour = "black") + 
+        coord_flip() +
+        ylab(input$webgestalt_y_label) + xlab(input$webgestalt_x_label) + 
+        theme_classic(base_size = 14)
+    }
+    
+    
+    return(p)
+  })
   
   output$webgestalt_plot <- renderPlot({
-    if (is.null(enrichment_data())) {
+    if (input$calculateEnrichments == 0) {
       return(NULL)
     } else {
-      enrichment_data()
+      enrichment_plot()
     }
   })
-  
   
   output$webgestalt_ora <- renderPlot({
     return(NULL)

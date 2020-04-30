@@ -1,16 +1,16 @@
 library(WebGestaltR)
 library(dplyr)
-enrichment_target_df <- read.delim("stats.txt", header = TRUE, stringsAsFactors = FALSE, sep = "\t")
+enrichment_target_df <- read.delim("2020-04-29-processedMQ.txt", header = TRUE, stringsAsFactors = FALSE, sep = "\t")
 
 
 enrichment_target_df_down = enrichment_target_df %>%
-  filter(Significant == "downregulated") %>%
-  select(Uniprot)
+  filter(significant == "Downregulated") %>%
+  select(UniprotID)
 
 
 enrichment_target_df_up = enrichment_target_df %>%
-                                 filter(Significant == "upregulated") %>%
-                                 select(Uniprot)
+                                 filter(significant == "Upregulated") %>%
+                                 select(UniprotID)
 
 
 enrichment_target_listf_up <- lapply(1:length(rownames(enrichment_target_df_up)), function(x){
@@ -66,20 +66,19 @@ if (!is.null(enrichment_out_down)) {
 
 enrichment_out_data <- rbind(enrichment_out_up, enrichment_out_down)
 
+ggplot(enrichment_out_data, aes(x = reorder(description,
+                                            enrichmentRatio),
+                                y = enrichmentRatio)) +
+  geom_bar(stat = "identity") +
+  coord_flip()
 
-enrichment_df_ora <- rbind(enrichment_out_down, enrichment_out_up)
-#ORA top
-enrichment_out <- WebGestaltR(enrichMethod = "ORA",
-                              outputDirectory = getwd()
-                              interestGene = listsof,
-                              interestGene = listsof,
-                              interestGeneType = "uniprotswissprot",
-                              enrichDatabase = "geneontology_Biological_Process",
-                              organism = "hsapiens",
-                              referenceSet = "genome_protein-coding",
-                              projectName = "User",
-                              sigMethod = "Top",
-                              topThr = 10
-                              
-)
+
+enrichment_out_up <- data.frame(description=c("Hello", "This is a thing",
+                                              "It should not be here", "lol still going"),
+                                enrichmentRatio=c(55,10,35,20),
+                                FDR_plot=c(TRUE, TRUE, FALSE, TRUE))
+enrichment_out_down <- data.frame(description=c("Hahaha", "Please stop",
+                                                "why why why", "disgusting"),
+                                  enrichmentRatio=c(-40,-22,-15,-25),
+                                  FDR_plot = c(FALSE, FALSE, TRUE, TRUE))
 
