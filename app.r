@@ -1,14 +1,12 @@
-##
-#shiny app for analysing mass spec data
-#creators James Gallant, Tiaan Heunis
-#Copyright 2019
-#To do:images need to be png format for web
-#Font sizes tab for main images
-#multidownlaoder for volcs and ?heat has format issues
 #shiny being unreasonable
 #library(BiocManager)
 #options(repos = BiocManager::repositories())
 #Libraries we need
+
+#Modal doesnt load when tut is loaded, need to rename files for it to work.
+#Double check the javascript
+#finish the enrichment build
+
 require(shinydashboard)
 require(shiny)
 library(tidyr)
@@ -30,7 +28,9 @@ require(pheatmap)
 require(rJava)
 require(zip)
 require(xlsx)
-#starting cod e for the app
+require(WebGestaltR)
+require(shinycssloaders)
+
 
 #user interface starts here
 ui <- dashboardPage(
@@ -356,7 +356,7 @@ ui <- dashboardPage(
                                                                     choices = c("High" = "retina",
                                                                                 "Medium" = "print",
                                                                                 "low" = "screen"),
-                                                                    selected = "print"),
+                                                                    selected = ""),
                                                         downloadButton(outputId = "scatFigDownload", 
                                                                        label = "download", 
                                                                        style="display: block; margin: 0 auto; width: 200px;color: black;"))),
@@ -394,7 +394,7 @@ ui <- dashboardPage(
                                                                     choices = c("High" = "retina",
                                                                                 "Medium" = "print",
                                                                                 "low" = "screen"),
-                                                                    selected = "print"),
+                                                                    selected = ""),
                                                         downloadButton(outputId = "corrFigDownload", 
                                                                        label = "download", 
                                                                        style="display: block; margin: 0 auto; width: 200px;color: black;"))),
@@ -430,7 +430,7 @@ ui <- dashboardPage(
                                                                     choices = c("High" = "retina",
                                                                                 "Medium" = "print",
                                                                                 "low" = "screen"),
-                                                                    selected = "print"),
+                                                                    selected = ""),
                                                         downloadButton(outputId = "pcaFigDownload", 
                                                                        label = "download", 
                                                                        style="display: block; margin: 0 auto; width: 200px;color: black;")))#PCA close
@@ -513,6 +513,7 @@ ui <- dashboardPage(
                                                    width = 200,
                                                    icon = icon("graduation-cap")),
                                       menuItem("Volcano plots",
+                                               icon = icon("chart-line"),
                                                actionButton(inputId = "generateVolcs",
                                                             label = "Render plots",
                                                             icon = icon("play-circle"),
@@ -586,6 +587,7 @@ ui <- dashboardPage(
                                                                      selected = "Both"))
                                       ),
                                       menuItem("Heatmaps",
+                                               icon = icon('chart-line'),
                                                actionButton(inputId = "generateHM",
                                                             label = "Render Heatmap",
                                                             icon = icon("play-circle"),
@@ -668,6 +670,95 @@ ui <- dashboardPage(
                                                                       style = rep(("color: black;"),7)))
                                                )
                                       ),
+                                      #Webgestalt controls
+                                      menuItem(text = "Webgestalt enrichments",
+                                               icon = icon("bezier-curve"),
+                                               actionButton(inputId = "generateEnrichments",
+                                                            label = "start",
+                                                            icon = icon("play-circle"),
+                                                            style ="display: block; margin: 0 auto; width: 200px;color: black;"),
+                                               br(),
+                                               div(style = "text: align-left; color: white,", tags$b("Current comparison")),
+                                               verbatimTextOutput(outputId = "enrichmet_currentCompareText"),
+                                               br(),
+                                               disabled(actionButton(inputId = "enrichmentCyclePrevious",
+                                                                     label = "Previous",
+                                                                     icon = icon("backward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;"),
+                                                        actionButton(inputId = "enrichmentCycleNext",
+                                                                     label = "Next",
+                                                                     icon = icon("forward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;")),
+                                               br(),
+                                               pickerInput(inputId = "webgesalt_orgs",
+                                                           label = "Choose model organism", 
+                                                           choices =  listOrganism(),
+                                                           multiple = FALSE, 
+                                                           selected = "hsapiens",
+                                                           choicesOpt = list(
+                                                             style = rep(("color: black;"),12))),
+                                               radioButtons(inputId = "webgestalt_tests",
+                                                            label = "Choose a test",
+                                                            choices = c("ORA", "GSEA"),
+                                                            inline = TRUE,
+                                                            selected = "ORA"),
+                                               uiOutput("webgestalt_yaxis_render"),
+                                               uiOutput("webgestalt_enrichment_variations_render"),
+                                               radioButtons(inputId = "webgestalt_db",
+                                                            label = "Choose querry database",
+                                                            choices = c("Gene onthology" = "gene_onthology",
+                                                                        "Pathway" = "pathway"),
+                                                            selected = "pathway"),
+                                               uiOutput("webgestalt_function"),
+                                               uiOutput("webgestalt_fdr_render"),
+                                               uiOutput("top_enrichment_slider"),
+                                               uiOutput("webgestalt_plotting_slider"),
+                                               uiOutput("webgestalt_sig_slider"),
+                                               uiOutput("webgestalt_fdr_options_render"),
+                                               actionButton(inputId = "calculateEnrichments",
+                                                            label = "Calculate",
+                                                            icon = icon("play-circle"),
+                                                            style ="display: block; margin: 0 auto; width: 200px;color: black;")),
+                                      #string
+                                      menuItem(text = "String controls",
+                                               icon = icon("atom"),
+                                               actionButton(inputId = "generateStringNetwork",
+                                                            label = "start",
+                                                            icon = icon("play-circle"),
+                                                            style ="display: block; margin: 0 auto; width: 200px;color: black;"),
+                                               br(),
+                                               div(style = "text: align-left; color: white,", tags$b("Current comparison")),
+                                               verbatimTextOutput(outputId = "string_currentCompareText"),
+                                               br(),
+                                               disabled(actionButton(inputId = "stringCyclePrevious",
+                                                                     label = "Previous",
+                                                                     icon = icon("backward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;"),
+                                                        actionButton(inputId = "stringCycleNext",
+                                                                     label = "Next",
+                                                                     icon = icon("forward"),
+                                                                     style="display:inline-block;width:40%;text-align: center;")),
+                                               br(),
+                                               pickerInput(inputId = "string_data_options",
+                                                           label = "Choose data set", 
+                                                           c("Upregulated" = "upregulated",
+                                                             "Downregulated" = "downregulated", 
+                                                             "Custom Uniprot ID" = "custom"),
+                                                           selected = "upgegulated",
+                                                           multiple = FALSE,
+                                                           choicesOpt = list(
+                                                             style = rep(("color: black;"),3))),
+                                               uiOutput("string_data_inputs"),
+                                               numericInput(inputId = "string_sig_threshold",
+                                                            label = "siginifcance threshold",
+                                                            min = 1, max = 1000, 
+                                                            value = 950),
+                                               numericInput(inputId = "string_max_nodes",
+                                                            label = "max nodes",
+                                                            min = 1, max = 100, 
+                                                            value = 10)
+                                               
+                                               ), # string menu close
                                       menuItem(text = "Download options",
                                                icon = icon("download"),
                                                textInput(inputId = "mainFigDownTitle",
@@ -683,7 +774,7 @@ ui <- dashboardPage(
                                                            choices = c("High" = "retina",
                                                                        "Medium" = "print",
                                                                        "low" = "screen"),
-                                                           selected = "print")))
+                                                           selected = "")))
                    ), #figures close
                    #about us panel
                    conditionalPanel(condition = "input.main_tabs == 'AboutUs'",
@@ -701,13 +792,12 @@ ui <- dashboardPage(
                         return 'Carefull, your changes will be lost!';
                     };
                 "))),
-                #uiOutput("cookieRender"),
                 tabsetPanel(id = "main_tabs",
                             #welcome tab/about tab
                             tabPanel(title = "Welcome",
                                      value = "welcome",
                                      icon = icon("door-open"),
-                                     htmlOutput("WelcomeDocs")),
+                                     uiOutput("welcomeHTML")),
                             #data handling tab
                             tabPanel(title = "Data handling",
                                      value = "data_handling",
@@ -1007,7 +1097,96 @@ ui <- dashboardPage(
                                               plotOutput("Heatmap"),
                                               downloadButton(outputId = "HMDownloader",
                                                              label = "Download Heatmap",
-                                                             style="color: black;")))
+                                                             style="color: black;"))),
+                                       fluidRow(column(12,
+                                                       tabsetPanel(id = "enrichment_plot_tabs",
+                                                                   tabPanel(title = "Webgestalt",
+                                                                            fluidRow(
+                                                                              column(9,
+                                                                                     plotOutput("webgestalt_plot") %>%
+                                                                                       withSpinner(type = 3, color.background = '#ECEFF4')),
+                                                                              column(3,
+                                                                                     dropdownButton(circle = TRUE,status = "primary", tooltip = TRUE,
+                                                                                                    icon = icon("gears"),
+                                                                                                    label = "click for plotting options",
+                                                                                         fluidPage(
+                                                                                           fluidRow(
+                                                                                             column(6,
+                                                                                                    textInput(inputId = "webgestalt_x_label",
+                                                                                                              label = "x-axis label",
+                                                                                                              placeholder = "Enrichment Ratio")
+                                                                                             ),
+                                                                                             column(6,
+                                                                                                    textInput(inputId = "webgestalt_y_label",
+                                                                                                              label = "y-axis label",
+                                                                                                              placeholder = "Description")
+                                                                                             ),
+                                                                                             fluidRow(
+                                                                                               div(style = "margin-left:15px;
+                                                                                                            margin-right:15px;",
+                                                                                                   column(3,
+                                                                                                          numericInput(inputId = "enrichment_x_axis_font_size",
+                                                                                                                       label = "X-axis size",
+                                                                                                                       min = 1, max = 30,
+                                                                                                                       value = 10)),
+                                                                                                   column(3,
+                                                                                                          numericInput(inputId = "enrichment_y_axis_font_size",
+                                                                                                                       label = "Y-axis size",
+                                                                                                                       min = 1, max = 30, 
+                                                                                                                       value = 8)),
+                                                                                                   column(3,
+                                                                                                          numericInput(inputId = "enrichment_x_title_font_size",
+                                                                                                                       label = "Y-title size",
+                                                                                                                       min = 1, max = 30, 
+                                                                                                                       value = 16)),
+                                                                                                   column(3,
+                                                                                                          numericInput(inputId = "enrichment_y_title_font_size",
+                                                                                                                       label = "X-axis size",
+                                                                                                                       min = 1, max = 30, 
+                                                                                                                       value = 16)))
+                                                                                               
+                                                                                             ),
+                                                                                             fluidRow(column(6,
+                                                                                                             div(style = "margin-left:10px;",
+                                                                                                                 colourInput(inputId = "webgestalt_colour_fill",
+                                                                                                                             label = "fill colour",
+                                                                                                                             showColour = "both",
+                                                                                                                             palette = "limited",
+                                                                                                                             value = "blue")
+                                                                                                             )
+                                                                                                             
+                                                                                             ),
+                                                                                             column(6,
+                                                                                                    actionButton(inputId = "webgestalt_tables",
+                                                                                                                 label = "Show data",
+                                                                                                                 style ="display: block;
+                                                                                      background-color:white;
+                                                                                      margin-top: 25px;
+                                                                                      marin-right: 15px;
+                                                                                      width: 150px;
+                                                                                      font-face:bold;
+                                                                                      color: black;"))),
+                                                                                             fluidRow(column(12,
+                                                                                                             div(style = "margin-left:25px",
+                                                                                                                 sliderInput(inputId = "webgestalt_top_n_slider",
+                                                                                                                             label = "Plot top n enrichments",
+                                                                                                                             min = 1, max = 30, step = 1,
+                                                                                                                             value = 10,
+                                                                                                                             width = 300))
+                                                                                             ))))
+                                                                                     )  #dropdown close
+                                                                                     )
+                                                                                      ),
+                                                                            downloadButton(outputId = "webgestalt_downloader", 
+                                                                                         label = "Download enrichment plot",
+                                                                                         style="color: black;")
+                                                                            ),
+                                                                   tabPanel(title = "String", 
+                                                                            uiOutput("string_image") %>%
+                                                                              withSpinner(type = 3, color.background = '#ECEFF4')
+                                                                            ))
+                                                       )
+                                                )
                                      ) #fluidpage close
                             ),#Figs close
                             #About us tab
@@ -1023,31 +1202,17 @@ ui <- dashboardPage(
 
 #server starts here
 server <- function(input, output, session) {
+  
+  
   ######Upload limit#####
   options(shiny.maxRequestSize=30*1024^2)
   options(shiny.sanitize.errors = FALSE)
-  #stop(safeError('the user should see this no matter what'))
-  ######Welcome tab######
+ 
   
-  ####privacy####
-  oldCookies <- function() {
-    userCookies <- reactive({
-      if (input$cookieChoice == 0) {
-        return(NULL)
-      } else {
-        sendSweetAlert(session,
-                       title = "Preference logged",
-                       type = "success")
-        if (input$cookies == "Disable") {
-          return(NULL)
-        } else {
-          return(tags$head(includeHTML("googleanalytics.html")))
-        }
-      }
-    })
-    
-    output$cookieRender <-  renderUI({userCookies()})
-  }
+  source(file = "www/scripts/utility_functions.R")
+  
+  ######Welcome tab######
+
   
   tab1Counters <- reactiveValues(ClickCounter = 0)
   
@@ -1068,163 +1233,112 @@ server <- function(input, output, session) {
   })
   
   HTMLdata <- reactive({
-    #observe events
-   if (tab1Counters$ClickCounter == 0) {
-     includeHTML("www/HTML/welcome.html")
-   } else if (input$tutOptions == "quickStart") {
-     includeHTML("www/HTML/quickstart.html")
-   } else if (input$tutOptions == "full" & input$fullTutPages == "gs") {
-     includeHTML("www/HTML/gettingStarted.html")
-   } else if (input$tutOptions == "full" & input$fullTutPages == "dp") {
-     includeHTML("www/HTML/dataProcessing.html")
-   } else if (input$tutOptions == "full" & input$fullTutPages == "qm") {
-     includeHTML("www/HTML/qc.html")
-   } else if (input$tutOptions == "full" & input$fullTutPages == "stats") {
-     includeHTML("www/HTML/stats.html")
-   } else if (input$tutOptions == "full" & input$fullTutPages == "mf") {
-     includeHTML("www/HTML/mainFigs.html")
-   } else if (input$tutOptions == "full" & input$fullTutPages == "exp") {
-     includeHTML("www/HTML/export.html")
-   } else {
-     return(NULL)
-   }
+    if (tab1Counters$ClickCounter == 0) {
+      includeHTML("www/HTML/welcome.html")
+    } else if (input$tutOptions == "quickStart") {
+      includeHTML("www/HTML/quickstart.html")
+    } else if (input$tutOptions == "full" & input$fullTutPages == "gs") {
+      includeHTML("www/HTML/gettingStarted.html")
+    } else if (input$tutOptions == "full" & input$fullTutPages == "dp") {
+      includeHTML("www/HTML/dataProcessing.html")
+    } else if (input$tutOptions == "full" & input$fullTutPages == "qm") {
+      includeHTML("www/HTML/qc.html")
+    } else if (input$tutOptions == "full" & input$fullTutPages == "stats") {
+      includeHTML("www/HTML/stats.html")
+    } else if (input$tutOptions == "full" & input$fullTutPages == "mf") {
+      includeHTML("www/HTML/mainFigs.html")
+    } else if (input$tutOptions == "full" & input$fullTutPages == "exp") {
+      includeHTML("www/HTML/export.html")
+    } else {
+      return(NULL)
+    }
   })
   
-  output$WelcomeDocs <- renderUI({
+  output$welcomeHTML <- renderUI({
     HTMLdata()
   })
   
-  #pre processing
+  #tutModal_preprocess-------------------------------------------------------------------------------------------------->
   observeEvent(input$DataProcTut, {
-    showModal(tags$div(id="modal1", tutDataPreProcess))
-  }
-  )
-  
-  tutDataPreProcess <- modalDialog(
-    fluidPage(
-      h3(strong("Data pre processing"), align="left"),
-      uiOutput('tutPreProcess_html')
-    ),
-    size="l", 
-    easyClose = TRUE,
-    fade = TRUE 
-  )
-  
-  output$tutPreProcess_html <- renderUI({
-    includeHTML("www/HTML/dataProcessing.html")
+    showModal(tutmodal_preprocessing())
   })
   
-  outputOptions(output, "tutPreProcess_html", suspendWhenHidden = FALSE)
+  tutmodal_preprocessing <- function(){
+    modalDialog(includeHTML("www/HTML/dataProcessing.html"),
+                size = "l", 
+                easyClose = TRUE,
+                fade = TRUE)
+  }
   
-  #qc
+  
+  #TutModal_QC----------------------------------------------------------------------------------------------------------->
   observeEvent(input$tut_QC, {
-    showModal(tags$div(id="modal2", tut_data_QC))
-  }
-  )
-  
-  tut_data_QC <- modalDialog(
-    fluidPage(
-      h3(strong("Quality control"), align="left"),
-      uiOutput('tutQC_html')
-    ),
-    size="l", 
-    easyClose = TRUE,
-    fade = TRUE 
-  )
-  
-  output$tutQC_html <- renderUI({
-    includeHTML("www/HTML/qc.html")
+    showModal(tutmodal_qc())
   })
   
-  outputOptions(output, "tutQC_html", suspendWhenHidden = FALSE)
+  tutmodal_qc <- function(failed = FALSE){
+    modalDialog(includeHTML("www/HTML/qc.html"),
+                size = "l", 
+                easyClose = TRUE,
+                fade = TRUE)
+  }
   
-  #stats
+  
+  #tutmodal_stats-------------------------------------------------------------------------------------------------------->
+
   observeEvent(input$tut_stats, {
-    showModal(tags$div(id="modal3", tut_data_stats))
+    showModal(tutmodal_stats())
   }
   )
   
-  tut_data_stats <- modalDialog(
-    fluidPage(
-      h3(strong("Statistics"), align="left"),
-      uiOutput('tutstats_html')
-    ),
-    size="l", 
-    easyClose = TRUE,
-    fade = TRUE 
-  )
+  tutmodal_stats <- function(failed = FALSE){
+    modalDialog(includeHTML("www/HTML/stats.html"),
+                size = "l", 
+                easyClose = TRUE,
+                fade = TRUE)
+  }
   
-  output$tutstats_html <- renderUI({
-    includeHTML("www/HTML/stats.html")
-  })
+  #tutmodal_mainfigs------------------------------------------------------------------------------------------------------->
   
-  outputOptions(output, "tutstats_html", suspendWhenHidden = FALSE)
-  
-  #mainFigs
   observeEvent(input$tut_mainFigs, {
-    showModal(tags$div(id="modal4", tut_data_mainFigs))
+    showModal(tutmodal_mainfigs())
   }
   )
   
-  tut_data_mainFigs <- modalDialog(
-    fluidPage(
-      h3(strong("Main figures"), align="left"),
-      uiOutput('tutMainFigs_html')
-    ),
-    size="l", 
-    easyClose = TRUE,
-    fade = TRUE 
-  )
+  tutmodal_mainfigs <- function(failed = FALSE){
+    modalDialog(includeHTML("www/HTML/mainFigs.html"),
+                size = "l", 
+                easyClose = TRUE,
+                fade = TRUE)
+  }
   
-  output$tutMainFigs_html <- renderUI({
-    includeHTML("www/HTML/mainFigs.html")
-  })
   
-  outputOptions(output, "tutMainFigs_html", suspendWhenHidden = FALSE)
+  #tutmodal_preprocessing_export------------------------------------------------------------------------------------------>
   
-  #tut_dataPreProcExport
   observeEvent(input$tut_dataPreProcExport, {
-    showModal(tags$div(id="modal5", tut_export_preproc))
-  }
-  )
-  
-  tut_export_preproc <- modalDialog(
-    fluidPage(
-      h3(strong("Export data file"), align="left"),
-      uiOutput('tut_export_preproc_html')
-    ),
-    size="l", 
-    easyClose = TRUE,
-    fade = TRUE 
-  )
-  
-  output$tut_export_preproc_html <- renderUI({
-    includeHTML("www/HTML/processedDataExportModal.html")
+    showModal(tutmodal_export_preprocessing())
   })
   
-  outputOptions(output, "tut_export_preproc_html", suspendWhenHidden = FALSE)
+  tutmodal_export_preprocessing <- function(failed = FALSE){
+    modalDialog(includeHTML("www/HTML/processedDataExportModal.html"),
+                size = "l", 
+                easyClose = TRUE,
+                fade = TRUE)
+  }
   
-  #"tut_statsExport"
+  #tutmodal_stats_export-------------------------------------------------------------------------------------------------->
   observeEvent(input$tut_statsExport, {
-    showModal(tags$div(id="modal6", tut_export_stats))
-  }
-  )
-  
-  tut_export_stats <- modalDialog(
-    fluidPage(
-      h3(strong("Export data file"), align="left"),
-      uiOutput('tut_export_stats_html')
-    ),
-    size="l", 
-    easyClose = TRUE,
-    fade = TRUE 
-  )
-  
-  output$tut_export_stats_html <- renderUI({
-    includeHTML("www/HTML/statsDataExportModal.html")
+    showModal(tutmodal_export_stats())
   })
   
-  outputOptions(output, "tut_export_stats_html", suspendWhenHidden = FALSE)
+  tutmodal_export_stats <- function(failed = FALSE){
+    modalDialog(includeHTML("www/HTML/statsDataExportModal.html"),
+                size = "l", 
+                easyClose = TRUE,
+                fade = TRUE)
+  }
+  
+  
   ###### DATA INPUT #####
   file_upload <- reactive({
     data <- read.csv(input$user_file$datapath, 
@@ -1283,143 +1397,6 @@ server <- function(input, output, session) {
   })
   
   #### Data handling ################################################################
-  #functions
-  #filter valid values
-  filterValidVals <- function(x, in_one, user_val) {
-    #count reps and get groups
-    if (in_one == "one_group") {
-      anno_data <- anno_data()
-      #need to keep genenames indexed
-      gene.names <- x$GeneNames
-      x$GeneNames <- NULL
-      
-      colnames(x) <- anno_data$annotation
-      
-      conditions <- as.data.frame(table(unlist(names(x))))
-      conditions <- conditions$Var1
-      
-      cond.filter <- sapply(levels(conditions), function(i) {
-        df2 <- x[, grepl(i, names(x))]
-        counts <- rowSums(is.finite(as.matrix(df2)))
-        counts >= user_val
-      })
-      
-      x$keep = apply(cond.filter, 1, any)
-      
-      x$GeneNames <- gene.names
-      #filter
-      
-      x <- x[!(x$keep=="FALSE"),]
-      x$keep <- NULL
-      x$geneNames <- NULL
-    }
-    
-    if (in_one == "each_group") {
-      anno_data <- anno_data()
-      #need to keep genenames indexed
-      gene.names <- x$GeneNames
-      x$GeneNames <- NULL
-      
-      colnames(x) <- anno_data$annotation
-      
-      
-      conditions <- as.data.frame(table(unlist(names(x))))
-      conditions <- conditions$Var1
-      
-      cond.filter <- sapply(levels(conditions), function(i) {
-        df2 <- x[, grepl(i, names(x))]
-        counts <- rowSums(is.finite(as.matrix(df2)))
-        counts >= user_val
-      })
-      
-      x$keep = apply(cond.filter, 1, all)
-      
-      x$GeneNames <- gene.names
-      #filter
-      
-      x <- x[!(x$keep=="FALSE"),]
-      x$keep <- NULL
-      x$geneNames <- NULL
-    }
-    #in matrix
-    
-    if (in_one == "entire_df") {
-      anno_data <- anno_data()
-      #need to keep genenames indexed
-      gene.names <- x$GeneNames
-      x$GeneNames <- NULL
-      
-      colnames(x) <- anno_data$annotation
-      rows <- rownames(x)
-      
-      x = do.call(data.frame, lapply(x, function(dat) replace(dat, is.infinite(dat), NA)))
-      
-      rownames(x) <- rows
-      colnames(x) <- anno_data$annotation
-      x$GeneNames <- gene.names
-      x = na.omit(x)
-
-    }
-    return(x)
-
-    }
-    
-  #median centering for normalisation
-  center_med = function(x) {
-    kol.name <- as.data.frame(table(unlist(names(x))))
-    kol.name <- as.character(kol.name$Var1)
-    
-    x[, kol.name] = lapply(kol.name, 
-                           function(i){
-                             LOG2 = x[[i]]
-                             LOG2[!is.finite(LOG2)] = NA
-                             gMedian = median(LOG2, na.rm = TRUE)
-                             LOG2 - gMedian
-                           })
-    #x$GeneNames <- gene.names
-    return(x)
-  }
-  
-  #impute by normal distro
-  imputeFunc = function(x, width, downshift, centerMedian) {
-    kol.name <- as.data.frame(table(unlist(names(x))))
-    kol.name <- as.character(kol.name$Var1)
-    
-    
-    set.seed(1)
-    x[kol.name] = lapply(kol.name,
-                         function(y) {
-                           temp = x[[y]]
-                           temp[!is.finite(temp)] = NA
-                           temp.sd = width * sd(temp, na.rm = TRUE)   # shrink sd width
-                           temp.mean = mean(temp, na.rm = TRUE) - 
-                             downshift * sd(temp, na.rm = TRUE)   # shift mean of imputed values
-                           n.missing = sum(is.na(temp))
-                           temp[is.na(temp)] = rnorm(n.missing, mean = temp.mean, sd = temp.sd)                          
-                           return(temp)
-                         })
-    return(x)
-    
-  }
-  
-  abbreviateSTR <- function(value, prefix){  # format string more concisely
-    lst = c()
-    for (item in value) {
-      if (is.nan(item) || is.na(item)) { # if item is NaN return empty string
-        lst <- c(lst, '')
-        next
-      }
-      item <- round(item, 2) # round to two digits
-      if (item == 0) { # if rounding results in 0 clarify
-        item = '<.01'
-      }
-      item <- as.character(item)
-      item <- sub("(^[0])+", "", item)    # remove leading 0: 0.05 -> .05
-      item <- sub("(^-[0])+", "-", item)  # remove leading -0: -0.05 -> -.05
-      lst <- c(lst, paste(prefix, item, sep = ""))
-    }
-    return(lst)
-  }
   
   #control imputations
   observe({
@@ -1598,7 +1575,8 @@ server <- function(input, output, session) {
         #in_one_user <- isolate(input$in_one)
         df2 <- filterValidVals(x = df2, 
                                 user_val = min_val_user, 
-                                in_one = input$in_one_user)
+                                in_one = input$in_one_user, 
+                                anno_data = anno_data())
         
         #add gene names again
         #dat2$GeneNames <- gene.names
@@ -1623,7 +1601,6 @@ server <- function(input, output, session) {
           colnames(df2) <- anno_data$ID
           df2$GeneNames <- gene.names
           
-          #return(tryCatch(df2, error = function(e) stop(safeError(""))))
         }
       }
       return(tryCatch(df2, error = function(e) stop(safeError(""))))
@@ -2450,6 +2427,7 @@ server <- function(input, output, session) {
                                   pattern = "_", 
                                   names = c("UniprotID", "GeneName")))
         
+        
         if (input$volclabelNoOfSig > 0) {
           
           if (input$volcSigLabels == "Upregulated") {
@@ -2750,7 +2728,6 @@ server <- function(input, output, session) {
     }
   })
   
-  
   observeEvent(input$HMCyclePrevious, {
     if (HMCycler$counter > 1) {
       HMCycler$counter <- HMCycler$counter - 1
@@ -2835,7 +2812,620 @@ server <- function(input, output, session) {
    
     })
   
-  ##########data handling download##########
+  #Webgestalt---------------------------------------------------------------------------------------->
+  webbestaltEnrichment <- function(data){
+    if (input$webgestalt_tests == "ORA") {
+      if (input$webgestalt_fdr == "fdr") {
+        WebGestaltR(enrichMethod = "ORA",
+                    interestGene = data,
+                    isOutput = FALSE,
+                    interestGeneType = "uniprotswissprot",
+                    enrichDatabase = input$webgestalt_function_picker,
+                    organism = input$webgesalt_orgs,
+                    referenceSet = "genome_protein-coding",
+                    projectName = "User",
+                    sigMethod = input$webgestalt_fdr,
+                    fdrMethod = input$webgestalt_fdr_options,
+                    fdrThr = as.numeric(input$webgestalt_sig_radio_out)
+        )
+      } else {
+        WebGestaltR(enrichMethod = "ORA",
+                    interestGene = data,
+                    isOutput = FALSE,
+                    interestGeneType = "uniprotswissprot",
+                    enrichDatabase = input$webgestalt_function_picker,
+                    organism = input$webgesalt_orgs,
+                    referenceSet = "genome_protein-coding",
+                    projectName = "User",
+                    sigMethod = input$webgestalt_fdr,
+                    fdrMethod = input$webgestalt_fdr_options,
+                    topThr = input$webgestalt_top_calc_slider
+        )
+      }
+      
+    } else if (input$webgestalt_tests == "GSEA") {
+      
+      tryCatch(WebGestaltR(enrichMethod = "GSEA",
+                           interestGene = data,
+                           isOutput = FALSE,
+                           interestGeneType = "uniprotswissprot",
+                           enrichDatabase = input$webgestalt_function_picker,
+                           organism = input$webgesalt_orgs,
+                           referenceSet = "genome_protein-coding"
+      ), error = function(e) {
+        stop(safeError(paste0(error_message_webgestalt(inputCall = paste0("No",
+                                                                          " ",
+                                                                          error_message_webgestalt(inputCall = input$webgestalt_function_picker),
+                                                                          "\'s",
+                                                                          " ",
+                                                                          "were enriched, try another method or pathway")))))
+      })
+    }
+    
+    
+  }
+  
+  enrichmentCycler <- reactiveValues(counter = 1)
+  
+  observeEvent(input$enricmentCyclePrevious, {
+    if (enrichmentCycler$counter > 1) {
+      enrichmentCycler$counter <- enrichmentCycler$counter - 1
+    }
+  })
+  
+  observeEvent(input$enrichmentCycleNext, {
+    if (enrichmentCycler$counter < length(input$hypoTestMat)) {
+      enrichmentCycler$counter <- enrichmentCycler$counter + 1
+    } else if (enrichmentCycler$counter == length(input$hypoTestMat)) {
+      enrichmentCycler$counter <- 1
+    }
+  })
+  
+  observeEvent(input$generateEnrichments, {
+    enable("enrichmentCyclePrevious")
+    enable("enrichmentCycleNext")
+    output$enrichmet_currentCompareText <- renderText(input$hypoTestMat[enrichmentCycler$counter])
+  })
+  
+  
+  output$webgestalt_enrichment_variations_render <- renderUI({
+    if (input$webgestalt_tests == "ORA") {
+      pickerInput(inputId = "enrichment_data_options_ora",
+                  label = "What should be enriched", 
+                  c("All protein IDs" = "all",
+                    "Upregulated proteins" = "up", 
+                    "Downregulated proteins" = "down"),
+                  selected = "all",
+                  multiple = FALSE,
+                  choicesOpt = list(
+                    style = rep(("color: black;"),3)))
+    } else {
+      pickerInput(inputId = "enrichment_data_options_gsea",
+                  label = "What should be enriched", 
+                  c("Strict" = "strict", 
+                    "Lenient" = "lenient",
+                    "All protein IDs" = "all"),
+                  selected = "strict",
+                  multiple = FALSE,
+                  choicesOpt = list(
+                    style = rep(("color: black;"),3)))
+    }
+    
+  })
+  
+  output$webgestalt_function <- renderUI({
+    if (input$webgestalt_db == "pathway") {
+      pickerInput(inputId = "webgestalt_function_picker",
+                  label = "Choose pathway database", 
+                  choices = c("KEGG" = "pathway_KEGG",
+                              "Panther" = "pathway_Panther", 
+                              "Reactome" = "pathway_Reactome",
+                              "Wiki pathway" = "pathway_Wikipathway"),
+                  selected = "pathway_KEGG",
+                  choicesOpt = list(
+                    style = rep(("color: black;"),4)))
+    } else {
+      pickerInput(inputId = "webgestalt_function_picker",
+                  label = "Choose enrichment database", 
+                  choices = c("Biological processes" = "geneontology_Biological_Process",
+                              "Molecular function" = "geneontology_Molecular_Function",
+                              "Cellular component" = "geneontology_Cellular_Component"),
+                  choicesOpt = list(
+                    style = rep(("color: black;"),3)))
+    } 
+  })
+  
+  output$webgestalt_fdr_render <- renderUI({
+    if (input$webgestalt_tests == "ORA") {
+      radioButtons(inputId = "webgestalt_fdr",
+                   label = "Choose correction method",
+                   choices = c("False discovery rate" = "fdr",
+                               "Top" = "top"),
+                   selected = "fdr",
+                   inline = TRUE)
+    } else {
+      return(NULL)
+    }
+  })
+  
+  output$webgestalt_fdr_options_render <- renderUI({
+    if (input$webgestalt_tests == "ORA" && input$webgestalt_fdr == "fdr") {
+      pickerInput(inputId = "webgestalt_fdr_options",
+                  label = "Choose enrichment FDR cut off", 
+                  choices = c(p.adjust.methods[1:6]),
+                  selected = "BH",
+                  choicesOpt = list(
+                  style = rep(("color: black;"),6)))
+    } else {
+      return(NULL)
+    }
+  })
+  
+  output$webgestalt_sig_slider <- renderUI({
+    if (input$webgestalt_tests == "ORA" && input$webgestalt_fdr == "fdr") {
+      radioButtons(inputId = "webgestalt_sig_radio_out",
+                   label = "Choose test FDR cut-off",
+                   choices = c(0.01, 0.05),
+                   selected = 0.05,
+                   inline = TRUE)
+    }
+  })
+  
+  output$webgestalt_yaxis_render <- renderUI({
+    if (input$webgestalt_tests == "ORA") {
+      pickerInput(inputId = "webgestalt_yaxis",
+                  label = "Choose plot data",
+                  choices = c("Enrichment ratio" = "enrichmentRatio",
+                              "P-value" = "pValue",
+                              "False discovery rate" = "FDR"),
+                  selected = "enrichmentRatio",
+                  multiple = FALSE,
+                  
+                  options = list(`actions-box` = TRUE, 
+                                 `selected-text-format` = "count > 0"),
+                  choicesOpt = list(
+                    style = rep(("color: black;"), 3)))
+    } else {
+      pickerInput(inputId = "webgestalt_yaxis",
+                  label = "Y axis",
+                  choices = c("Enrichment score" = "enrichmentScore",
+                              "Normalised enrichment score" = "normalizedEnrichmentScore",
+                              "p-value" = "pValue",
+                              "False discovery rate" = "FDR"),
+                  selected = "normalizedEnrichmentScore",
+                  multiple = FALSE,
+                  
+                  options = list(`actions-box` = TRUE, 
+                                 `selected-text-format` = "count > 0"),
+                  choicesOpt = list(
+                    style = rep(("color: black;"), 4)))
+      }
+    })
+  
+  output$top_enrichment_slider <- renderUI({
+    if (input$webgestalt_tests == "ORA" && input$webgestalt_fdr == "top") {
+      sliderInput(inputId = "webgestalt_top_calc_slider",
+                  label = "Plot top n enrichments",
+                  min = 1, max = 30, step = 1,
+                  value = 10)
+      
+    }
+  })
+     
+
+  encrichment_input_data <- reactive({
+    if (input$generateEnrichments > 0) {
+      enrichment_data_list <- list()
+      for (i in 1:length(input$hypoTestMat)) {
+        fit2 <- statsTestedData()
+        statComb <- statComb()
+        
+        d.out <- data.frame(ID = names(fit2$coefficients[,i]),
+                            pValue = fit2$p.value[,i],
+                            qValue = p.adjust(fit2$p.value[,i], input$pvalAdjust),
+                            EffectSize = fit2$coefficients[,i],
+                            comparison = statComb[i])
+        d.out <- mutate(d.out, 
+                        significant = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "Upregulated",
+                                     ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "Downregulated", "Non_significant")))
+        
+        
+        d2 <- data.frame(d.out,
+                         colsplit(string = d.out$ID, 
+                                  pattern = "_", 
+                                  names = c("UniprotID", "GeneName")))
+        
+        enrichment_data_name <- input$hypoTestMat[i]
+        enrichment_data_list[[enrichment_data_name]] = d2
+        
+      } # for loop close
+      
+      
+      enrichment_target_df <- enrichment_data_list[[enrichmentCycler$counter]]
+      validate(need(enrichment_target_df, 
+                    message = "Start the calculations first"))
+    }
+   
+    return(enrichment_target_df)
+  })
+  
+  enrichment_data <- eventReactive(input$calculateEnrichments, {
+    encrichment_input_data <- encrichment_input_data()
+    if (input$webgestalt_tests == "ORA") { 
+      if (input$enrichment_data_options_ora == "up") {
+        enrichment_target_list_up <- ora_list(ora_data = encrichment_input_data,
+                                              regulation = "Upregulated")
+        
+        
+        enrichment_out_up <- webbestaltEnrichment(data = enrichment_target_list_up)
+
+        
+        enrichment_out_data <- enrichment_out_up
+        
+        
+      } else if (input$enrichment_data_options_ora == "down") {
+        
+        enrichment_target_list_down <- ora_list(ora_data = encrichment_input_data,
+                                             regulation = "Downregulated")
+        
+        
+        enrichment_out_down <- webbestaltEnrichment(data = enrichment_target_list_down)
+        
+        
+        enrichment_out_data <- enrichment_out_down
+
+        
+      } else {
+        
+        enrichment_target_list_up <- ora_list(ora_data = encrichment_input_data,
+                                              regulation = "Upregulated")
+        
+        enrichment_target_list_down <- ora_list(ora_data = encrichment_input_data,
+                                                regulation = "Downregulated")
+        
+        
+        enrichment_out_up <- webbestaltEnrichment(data = enrichment_target_list_up)
+        
+
+        
+        enrichment_out_down <- webbestaltEnrichment(data = enrichment_target_list_down)
+        
+        
+        if (!is.null(enrichment_out_down)) {
+          enrichment_out_down$enrichmentRatio <- enrichment_out_down$enrichmentRatio * - 1
+          
+        }
+        
+        
+        enrichment_out_data <- rbind(enrichment_out_up, enrichment_out_down)
+        
+        
+      }
+     
+    } else {
+      #GSEA starts here
+      
+      gsea_data <- gsea_df(gsea_data = encrichment_input_data,
+                           enrichment_options = input$enrichment_data_options_gsea, 
+                           sig_cutoff = input$UserSigCutoff)
+      
+      enrichment_out_data <- webbestaltEnrichment(data = gsea_data)
+      
+      
+    }
+    return(enrichment_out_data)
+  })
+  
+  enrichment_data_filtered <- reactive({
+    enrichment_data <- enrichment_data()
+    if (input$webgestalt_tests == "ORA") {
+      
+      validate(
+        need(enrichment_data$enrichmentRatio,
+             message = paste0("recalculate")))
+     
+      if (input$enrichment_data_options_ora == "up") {
+        if (!is.null(enrichment_data)) {
+          enrichment_data = enrichment_data %>%
+            arrange(desc(enrichmentRatio)) %>%
+            top_n(input$webgestalt_top_n_slider)
+        }
+        
+        validate(
+          need(enrichment_data$FDR,
+               message = paste0("No",
+                                " ",
+                                error_message_webgestalt(inputCall = input$webgestalt_function_picker),
+                                " ",
+                                "were enriched, try another method or pathway"))
+        )
+        
+      } else if (input$enrichment_data_options_ora == "down") {
+        if (!is.null(enrichment_data)) {
+          enrichment_data = enrichment_data %>%
+            arrange(enrichmentRatio) %>%
+            top_n(input$webgestalt_top_n_slider)
+        }
+        
+        validate(
+          need(enrichment_data$FDR,
+               message = paste0("No",
+                                " ",
+                                error_message_webgestalt(inputCall = input$webgestalt_function_picker),
+                                " ",
+                                "were enriched, try another method or pathway"))
+        )
+        
+      } else {
+        # merged up and down
+        if (!is.null(enrichment_data)) {
+          enrichment_up = enrichment_data %>%
+            filter(enrichmentRatio > 0) %>%
+            arrange(desc(enrichmentRatio)) %>%
+            top_n(input$webgestalt_top_n_slider)
+          
+          enrichment_down = enrichment_data %>%
+            filter(enrichmentRatio < 0) %>%
+            arrange(enrichmentRatio) %>%
+            top_n(input$webgestalt_top_n_slider)
+          
+          enrichment_data <- rbind(enrichment_up, enrichment_down)
+        }
+        
+        
+        validate(
+          need(enrichment_data$FDR,
+               message = paste0("No",
+                                " ",
+                                error_message_webgestalt(inputCall = input$webgestalt_function_picker),
+                                " ",
+                                "were enriched, try another method or pathway"))
+        )
+        
+      }
+    } else {
+      #GSEA
+      
+      enrichment_data <- gsea_webgestalt_df(data = enrichment_data, topN = input$webgestalt_top_n_slider)
+      
+      
+      validate(
+        need(enrichment_data$FDR,
+             message = paste0("No",
+                              " ",
+                              error_message_webgestalt(inputCall = input$webgestalt_function_picker),
+                              " ",
+                              "were enriched, try another method or pathway"))
+      )
+    }
+    
+    return(enrichment_data)
+    
+  })
+  
+  observeEvent(input$webgestalt_tables, {
+    showModal(tags$div(id="ORA", data_table))
+  })
+  
+  data_table <- modalDialog(
+    
+    fluidPage(
+      h3(strong("Enrichment table"), align="left"),
+      dataTableOutput('table_render')
+    ),
+    size="l", 
+    easyClose = TRUE,
+    fade = TRUE 
+  )
+  
+  output$table_render <-  DT::renderDataTable({
+    datatable(enrichment_data_filtered(), extensions = 'Buttons',
+              options = list(
+                scrollX = T,
+                autoWidth = TRUE,
+                dom = "Blfrtip",
+                buttons = 
+                  list("copy", list(
+                    extend = "collection",
+                    buttons = c("csv", "excel", "pdf"),
+                    text = "Download", filename = paste0(input$webgestalt_tests,
+                                                         "_", 
+                                                         input$hypoTestMat[enrichmentCycler$counter],
+                                                         "_",
+                                                         input$webgestalt_function_picker)
+                  ) ), # end of buttons customization
+                
+                # customize the length menu
+                lengthMenu = list( c(10, 20, -1) # declare values
+                                   , c(10, 20, "All") # declare titles
+                ), # end of lengthMenu customization
+                pageLength = 10 
+              ))
+
+  })
+  
+  enrichment_plot <- reactive({
+    enrichment_data <- enrichment_data_filtered()
+    if (input$webgestalt_tests == "GSEA") {
+      validate(need(enrichment_data$normalizedEnrichmentScore,
+                    message = "Recalculate the enrichment"))
+    } else {
+      validate(need(enrichment_data$enrichmentRatio,
+                    message = "Recalculate the enrichment"))
+    }
+    
+    p <- ggplot(enrichment_data, aes_string(x = paste0("reorder(description", 
+                                                       ",",
+                                                       "",
+                                                       "-",
+                                                       input$webgestalt_yaxis,
+                                                       ")"),
+                                            y = input$webgestalt_yaxis)) +
+      geom_bar(stat = "identity", fill = input$webgestalt_colour_fill, colour = "black") +
+      ylab(input$webgestalt_x_label) + xlab(input$webgestalt_y_label) + 
+      coord_flip() +
+      theme_classic(base_size = 14) +
+      theme(axis.text.x = element_text(size = input$enrichment_x_axis_font_size),
+            axis.text.y = element_text(size = input$enrichment_y_axis_font_size, face = "bold"),
+            axis.title.x = element_text(size = input$enrichment_x_title_font_size),
+            axis.title.y = element_text(size = input$enrichment_y_title_font_size))
+        
+    
+    return(p)
+  })
+  
+  output$webgestalt_plot <- renderPlot({
+    if (input$calculateEnrichments == 0) {
+      return(NULL)
+    } else {
+      enrichment_plot()
+    }
+  })
+  
+
+#stringDB-------------------------------------------------------------------------------------->
+#basic buid: construct a base html and hit the stringt api using httr
+# 
+  
+  
+  
+ 
+  # Server side UI logic
+  
+  stringCycler <- reactiveValues(counter = 1)
+  
+  observeEvent(input$stringCyclePrevious, {
+    if (stringCycler$counter > 1) {
+      stringCycler$counter <- stringCycler$counter - 1
+    }
+  })
+  
+  observeEvent(input$stringCycleNext, {
+    if (stringCycler$counter < length(input$hypoTestMat)) {
+      stringCycler$counter <- stringCycler$counter + 1
+    } else if (stringCycler$counter == length(input$hypoTestMat)) {
+      stringCycler$counter <- 1
+    }
+  })
+  
+  observeEvent(input$generateStringNetwork, {
+    enable("stringCyclePrevious")
+    enable("stringCycleNext")
+    output$string_currentCompareText <- renderText(input$hypoTestMat[stringCycler$counter])
+  })
+  
+  
+  # server sude UI rendereing
+  output$string_data_inputs <- renderUI({
+    if (input$string_data_options == "upregulated" || input$string_data_options == "downregulated") {
+      sliderInput(inputId = "string_no_of_proteins",
+                  label = "Number of proteins",
+                  min = 1, max = 50, step = 1,
+                  value = 1)
+    } else {
+      textInput(inputId = "string_proteins_user",
+                label = "Enter proteins comma separated",
+                placeholder = "O69732,P9WJC1")
+    }
+  })
+  
+  # data input
+  
+  string_full_sig_data <- reactive({
+    if (input$generateStringNetwork > 0) {
+      string_data_list <- list()
+      for (i in 1:length(input$hypoTestMat)) {
+        fit2 <- statsTestedData()
+        statComb <- statComb()
+        
+        d.out <- data.frame(ID = names(fit2$coefficients[,i]),
+                            pValue = fit2$p.value[,i],
+                            qValue = p.adjust(fit2$p.value[,i], input$pvalAdjust),
+                            EffectSize = fit2$coefficients[,i],
+                            comparison = statComb[i])
+        d.out <- mutate(d.out, 
+                        significant = ifelse(d.out$EffectSize > input$UserFCCutoff & round(d.out$qValue, 3) < input$UserSigCutoff, "upregulated",
+                                             ifelse(d.out$EffectSize < (input$UserFCCutoff * -1) & round(d.out$qValue, 3) < input$UserSigCutoff, "downregulated", "non_significant")))
+        
+        
+        d2 <- data.frame(d.out,
+                         colsplit(string = d.out$ID, 
+                                  pattern = "_", 
+                                  names = c("UniprotID", "GeneName")))
+        
+        string_data_name <- input$hypoTestMat[i]
+        string_data_list[[string_data_name]] = d2
+        
+      } # for loop close
+      
+      
+      string_target_df <- string_data_list[[stringCycler$counter]]
+      validate(need(string_target_df, 
+                    message = "Start the calculations first"))
+    }
+    
+    return(string_target_df)
+  })
+  
+  
+  URL_string <- reactive({
+    df <- string_full_sig_data()
+    if (input$string_data_options == "custom") {
+      string_df <- input$string_proteins_user
+    } else if (input$string_data_options == "upregulated") {
+      string_df <- df %>%
+        filter(significant == input$string_data_options) %>%
+        arrange(EffectSize) %>%
+        select(UniprotID) %>%
+        slice(1:input$string_no_of_proteins)
+      
+    } else if (input$string_data_options == "downregulated") {
+      string_df <- df %>%
+        filter(significant == input$string_data_options) %>%
+        arrange(EffectSize) %>%
+        slice(1:input$string_no_of_proteins)
+       
+
+    }
+  
+    if (input$string_data_options == "custom") {
+      URL <- string_url_builder(sig_thresh = input$string_sig_threshold,
+                                max_nodes = input$string_max_threshold, 
+                                protein_querry = reformat_proteinID(input_ID = string_df,
+                                                                    data_options = input$string_data_options))
+    } else {
+      URL <- string_url_builder(sig_thresh = input$string_sig_threshold,
+                                max_nodes = input$string_max_threshold, 
+                                protein_querry = reformat_proteinID(input_ID = string_df$UniprotID,
+                                                                    data_options = input$string_data_options))
+    }
+    
+    return(URL)
+  })
+  
+  # render image
+  output$string_image <- renderUI({
+    if (input$generateStringNetwork > 0) {
+      
+      div(
+        tags$img(src=URL_string(),
+                 id="stringImage",
+                 width="auto",
+                 height="auto",
+                 align="left",
+                 style = "position: center;"
+        ))
+  
+    } else {
+      return(c("Start calculations first"))
+    }
+
+
+  })
+
+  
+
+  #downlowding--------------------------------------------------------------------------------------------------------->
   #processed data
   output$ProcDataSelectorUI <- renderUI({
     if (input$ProcDataDownType == "txt") {
@@ -2918,9 +3508,9 @@ server <- function(input, output, session) {
       if (input$SigDataDownName == "") {
         if (input$SigDataDownType == "xlsx") {
           
-          n = paste(Sys.Date(), "-", "Statistics-",hypoTestMat[statsCycler$counter], ".", "xlsx", sep = "")
+          n = paste(Sys.Date(), "-", "Statistics-",input$hypoTestMat[statsCycler$counter], ".", "xlsx", sep = "")
         } else {
-          n = paste(Sys.Date(), "-", "Statistics-",hypoTestMat[statsCycler$counter], ".", "txt", sep = "")
+          n = paste(Sys.Date(), "-", "Statistics-",input$hypoTestMat[statsCycler$counter], ".", "txt", sep = "")
         }
       } else {
         if (input$SigDataDownType == "xlsx") {
@@ -3018,7 +3608,7 @@ server <- function(input, output, session) {
       
     }
   )
-  #plot download handlers
+  #normaldistrubtion--------------------------------------------------------------------------------------------->
   normFileName <- reactive({
     if (input$normFigDownChoice == "Current") {
       p <- NormalityPlot()[Counter$normcounter]
@@ -3089,7 +3679,7 @@ server <- function(input, output, session) {
     }
   )
   
-  #scatterplots
+  #scatterplots------------------------------------------------------------------------------------------->
   scatFileName <- reactive({
     if (input$scatFigDownChoice == "Current") {
       p <- scatter_user()[[Counter$scatcounter]]
@@ -3138,7 +3728,7 @@ server <- function(input, output, session) {
     }
   )
   
-  #correlation plots
+  #correlation----------------------------------------------------------------------------------------------------->
   corrFileName <- reactive({
     name <- paste("Correlogram", ".", input$corrFigDownType,
                   sep = "")
@@ -3175,7 +3765,7 @@ server <- function(input, output, session) {
              dpi = isolate(input$pcaFigRes))
     }
   )
-  #volcanos
+  #volcanos---------------------------------------------------------------------------------------------->
   volcFileName <- reactive({
     if (input$mainFigDownTitle == "") {
       
@@ -3200,7 +3790,7 @@ server <- function(input, output, session) {
     }
   )
   
-  #heatmap
+  #heatmap------------------------------------------------------------------------------------------>
   heatmapFileName <- reactive({
     if (input$mainFigDownTitle == "") {
       n <- paste("Heatmap-", input$hypoTestMat[HMCycler$counter], ".", input$mainFigDownType,
@@ -3213,6 +3803,7 @@ server <- function(input, output, session) {
     return(n)
   })
   
+  
   output$HMDownloader <- downloadHandler(
     #getting input is not working for filename
     filename = function() {heatmapFileName() },
@@ -3223,6 +3814,33 @@ server <- function(input, output, session) {
              dpi = isolate(input$mainFigRes))
     }
   )
+  #----------------------------------------------------------------------------------------------->
+  #Webgestalt download
+  #volcanos
+  enrichmentFileName <- reactive({
+    if (input$mainFigDownTitle == "") {
+      
+      n <- paste("Webgestalt-", input$hypoTestMat[enrichmentCycler$counter], ".", input$mainFigDownType,
+                 sep = "")
+    } else {
+      
+      n <- paste("Webgestalt-", input$mainFigDownTitle, ".", input$mainFigDownType,
+                 sep = "")
+    }
+    
+    return(n)
+  })
+  output$webgestalt_downloader <- downloadHandler(
+    #getting input is not working for filename
+    filename = function() {enrichmentFileName() },
+    content = function(file) {
+      ggsave(file, 
+             plot = enrichment_plot(),
+             device = isolate(input$mainFigDownType),
+             dpi = isolate(input$mainFigRes))
+    }
+  )
+
 
   ###about us tab ###
 
