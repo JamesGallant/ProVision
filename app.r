@@ -30,6 +30,7 @@ require(zip)
 require(xlsx)
 require(WebGestaltR)
 require(shinycssloaders)
+require(httr)
 
 
 #user interface starts here
