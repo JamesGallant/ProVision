@@ -288,3 +288,33 @@ string_url_builder <- function(protein_querry, sig_thresh, max_nodes) {
   
   
 }
+
+string_url_builderDL <- function(protein_querry, sig_thresh, max_nodes, dtype) {
+  validate(need(protein_querry > 0,
+                message = "No proteins availible"))
+  if (protein_querry == 1) {
+    data <- "network?identifier="
+    
+  } else {
+    data <- "networkList?identifiers="
+    
+    protein_querry <- paste(protein_querry,collapse=" ")
+    
+  }
+  
+  
+  URL <- paste0("http://string-db.org/api/",
+                dtype, 
+                "/",
+                data,
+                protein_querry,
+                "&required_score=",
+                sig_thresh,
+                "&limit=",
+                max_nodes,
+                "&network_flavor=evidence")
+ 
+  return(URL)
+  
+  
+}

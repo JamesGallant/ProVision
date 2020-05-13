@@ -30,6 +30,7 @@ require(zip)
 require(xlsx)
 require(WebGestaltR)
 require(shinycssloaders)
+require(httr)
 
 
 #user interface starts here
@@ -233,49 +234,11 @@ ui <- dashboardPage(
                                                            showColour = "both",
                                                            palette = "limited",
                                                            value = "#666666"),
-                                               menuItem(text = div(style = "text-align:left; color: white, ", 
-                                                                   tags$b("qqPlot aesthetics")),
-                                                        icon = icon("swatchbook"),
-                                                        textInput(inputId = "qqPlotTitle",
-                                                                  label = "Plot title",
-                                                                  value = "",
-                                                                  placeholder = "Q-Q plot of ..."),
-                                                        sliderInput(inputId = "qqPointSize",
-                                                                    label = "Change point size",
-                                                                    min = 1, max = 10, step = 1, 
-                                                                    value = 2),
-                                                        sliderInput(inputId = "qqPlotAlphaChannel", 
-                                                                    label = "Change transparency",
-                                                                    min = 0.1, max = 1, step = 0.1, 
-                                                                    value = 1)
-                                               ),
-                                               menuItem(text = div(style = "text-align:left; color: white, ", 
-                                                                   tags$b("Histogram aesthetics")),
-                                                        icon = icon("swatchbook"),
-                                                        textInput(inputId = "HistoTitle",
-                                                                  label = "Plot title",
-                                                                  value = "",
-                                                                  placeholder = "Histogram of ..."),
-                                                        sliderInput(inputId = "HistoBinWidth",
-                                                                    label = "Select bin width",
-                                                                    min = 1, max = 100, step = ,
-                                                                    value = 30),
-                                                        prettySwitch(
-                                                          inputId = "HistoPlotDensity",
-                                                          label = "Add density distribution", 
-                                                          status = "primary",
-                                                          slim = TRUE),
-                                                        colourInput(inputId = "normDensityFill",
-                                                                    label = "Density plot colour",
-                                                                    palette = "limited",
-                                                                    value = "#666666"),
-                                                        sliderInput(inputId = "DensPlotAlphaChannel", 
-                                                                    label = "Change transparency",
-                                                                    min = 0.1, max = 1, step = 0.1, 
-                                                                    value = 0.4)
-                                                        
-                                                        
-                                               ),
+                                               uiOutput("normality_control1"),
+                                               uiOutput("normality_control2"),
+                                               uiOutput("normality_control3"),
+                                               uiOutput("normality_control4"),
+                                               uiOutput("normality_control5"),
                                                br(),
                                                menuItem(text = "Downloads",
                                                         icon = icon("download"),
@@ -1160,12 +1123,12 @@ ui <- dashboardPage(
                                                                                                     actionButton(inputId = "webgestalt_tables",
                                                                                                                  label = "Show data",
                                                                                                                  style ="display: block;
-                                                                                      background-color:white;
-                                                                                      margin-top: 25px;
-                                                                                      marin-right: 15px;
-                                                                                      width: 150px;
-                                                                                      font-face:bold;
-                                                                                      color: black;"))),
+                                                                                                                    background-color:white;
+                                                                                                                    margin-top: 25px;
+                                                                                                                    marin-right: 15px;
+                                                                                                                    width: 150px;
+                                                                                                                    font-face:bold;
+                                                                                                                    color: black;"))),
                                                                                              fluidRow(column(12,
                                                                                                              div(style = "margin-left:25px",
                                                                                                                  sliderInput(inputId = "webgestalt_top_n_slider",
@@ -1181,7 +1144,18 @@ ui <- dashboardPage(
                                                                                          label = "Download enrichment plot",
                                                                                          style="color: black;")
                                                                             ),
-                                                                   tabPanel(title = "String", 
+                                                                   tabPanel(title = "String",
+                                                                            fluidRow(radioButtons(inputId = "string_image_extention",
+                                                                                                  label = "", 
+                                                                                                  choices = c("png" = "highres_image",
+                                                                                                              "svg" = "svg"), 
+                                                                                                  selected = "highres_image",
+                                                                                                  inline = TRUE)),
+                                                                            fluidRow(
+                                                                              downloadButton(outputId = "string_download_image",
+                                                                                             label = "Download",
+                                                                                             style="color: black;")
+                                                                            ),
                                                                             uiOutput("string_image") %>%
                                                                               withSpinner(type = 3, color.background = '#ECEFF4')
                                                                             ))
@@ -1869,10 +1843,77 @@ server <- function(input, output, session) {
     infovals$countervalue <- 0
   })
 
-  ######### Quality Metrics ###########################
+  #QC_plots------------------------------------------------------------------------------------------------->
+  #ui_logic------------------------------------------------>
+  
+  output$normality_control1 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      ui_widget <- textInput(inputId = "qqPlotTitle",
+                             label = "Plot title",
+                             value = "",
+                             placeholder = "Q-Q plot of ...")
+    } else {
+      ui_widget <- textInput(inputId = "HistoTitle",
+                             label = "Plot title",
+                             value = "",
+                             placeholder = "Histogram of ...")
+    }
+    return(ui_widget)
+  })
+  output$normality_control2 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      ui_widget <- sliderInput(inputId = "qqPointSize",
+                                label = "Change point size",
+                                min = 1, max = 10, step = 1, 
+                                value = 2)
+    } else {
+      ui_widget <- sliderInput(inputId = "HistoBinWidth",
+                               label = "Select bin width",
+                               min = 1, max = 100, step = ,
+                               value = 30)
+    }
+    return(ui_widget)
+  })
+  output$normality_control3 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      ui_widget <- sliderInput(inputId = "qqPlotAlphaChannel", 
+                                label = "Change transparency",
+                                min = 0.1, max = 1, step = 0.1, 
+                                value = 1)
+    } else {
+      ui_widget <- prettySwitch(
+        inputId = "HistoPlotDensity",
+        label = "Add density distribution", 
+        status = "primary",
+        slim = TRUE)
+    }
+    return(ui_widget)
+  })
+  output$normality_control4 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      return(NULL)
+    } else {
+      return(colourInput(inputId = "normDensityFill",
+                         label = "Density plot colour",
+                         palette = "limited",
+                         value = "#666666"))
+    }
+  })
+  output$normality_control5 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      return(NULL)
+    } else {
+      return(sliderInput(inputId = "DensPlotAlphaChannel", 
+                         label = "Change transparency",
+                         min = 0.1, max = 1, step = 0.1, 
+                         value = 0.4))
+    }
+  })
+  
+  #server_logic--------------------------------------------->
   Counter <- reactiveValues(normcounter = 1,
                             scatcounter = 1)
-  ###Q-Qplots###
+
   
   observeEvent(input$normRender, {
     enable("normPrevious")
@@ -3286,10 +3327,6 @@ server <- function(input, output, session) {
 #stringDB-------------------------------------------------------------------------------------->
 #basic buid: construct a base html and hit the stringt api using httr
 # 
-  
-  
-  
- 
   # Server side UI logic
   
   stringCycler <- reactiveValues(counter = 1)
@@ -3368,7 +3405,7 @@ server <- function(input, output, session) {
   })
   
   
-  URL_string <- reactive({
+  string_URL_data <- reactive({
     df <- string_full_sig_data()
     if (input$string_data_options == "custom") {
       string_df <- input$string_proteins_user
@@ -3387,13 +3424,18 @@ server <- function(input, output, session) {
        
 
     }
+    return(string_df)
+  })
   
+  string_url <- reactive({
+    
     if (input$string_data_options == "custom") {
       URL <- string_url_builder(sig_thresh = input$string_sig_threshold,
                                 max_nodes = input$string_max_threshold, 
-                                protein_querry = reformat_proteinID(input_ID = string_df,
+                                protein_querry = reformat_proteinID(input_ID = string_URL_data(),
                                                                     data_options = input$string_data_options))
     } else {
+      string_df <- string_URL_data()
       URL <- string_url_builder(sig_thresh = input$string_sig_threshold,
                                 max_nodes = input$string_max_threshold, 
                                 protein_querry = reformat_proteinID(input_ID = string_df$UniprotID,
@@ -3408,7 +3450,7 @@ server <- function(input, output, session) {
     if (input$generateStringNetwork > 0) {
       
       div(
-        tags$img(src=URL_string(),
+        tags$img(src=string_url(),
                  id="stringImage",
                  width="auto",
                  height="auto",
@@ -3838,6 +3880,42 @@ server <- function(input, output, session) {
              plot = enrichment_plot(),
              device = isolate(input$mainFigDownType),
              dpi = isolate(input$mainFigRes))
+    }
+  )
+  
+  #StringDownload------------------------------------------------------------------------------------>
+
+  string_url_dl <- reactive({
+    
+    if (input$string_data_options == "custom") {
+      URL <- string_url_builderDL(sig_thresh = input$string_sig_threshold,
+                                max_nodes = input$string_max_threshold, 
+                                protein_querry = reformat_proteinID(input_ID = string_URL_data(),
+                                                                    dtype = input$string_image_extention,
+                                                                    data_options = input$string_data_options))
+    } else {
+      string_df <- string_URL_data()
+      URL <- string_url_builderDL(sig_thresh = input$string_sig_threshold,
+                                max_nodes = input$string_max_threshold,
+                                dtype = input$string_image_extention,
+                                protein_querry = reformat_proteinID(input_ID = string_df$UniprotID,
+                                                                    data_options = input$string_data_options))
+    }
+    
+    return(URL)
+  })
+  
+  output$string_download_image <- downloadHandler(
+    filename = function() {
+      if (input$string_image_extention == "highres_image") {
+        paste0("String_network", Sys.Date(), ".png")
+      } else {
+        paste0("String_network", Sys.Date(), ".svg")
+      }
+      
+    },
+    content = function(file) {
+      GET(string_url_dl(), write_disk(file))
     }
   )
 
