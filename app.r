@@ -233,49 +233,11 @@ ui <- dashboardPage(
                                                            showColour = "both",
                                                            palette = "limited",
                                                            value = "#666666"),
-                                               menuItem(text = div(style = "text-align:left; color: white, ", 
-                                                                   tags$b("qqPlot aesthetics")),
-                                                        icon = icon("swatchbook"),
-                                                        textInput(inputId = "qqPlotTitle",
-                                                                  label = "Plot title",
-                                                                  value = "",
-                                                                  placeholder = "Q-Q plot of ..."),
-                                                        sliderInput(inputId = "qqPointSize",
-                                                                    label = "Change point size",
-                                                                    min = 1, max = 10, step = 1, 
-                                                                    value = 2),
-                                                        sliderInput(inputId = "qqPlotAlphaChannel", 
-                                                                    label = "Change transparency",
-                                                                    min = 0.1, max = 1, step = 0.1, 
-                                                                    value = 1)
-                                               ),
-                                               menuItem(text = div(style = "text-align:left; color: white, ", 
-                                                                   tags$b("Histogram aesthetics")),
-                                                        icon = icon("swatchbook"),
-                                                        textInput(inputId = "HistoTitle",
-                                                                  label = "Plot title",
-                                                                  value = "",
-                                                                  placeholder = "Histogram of ..."),
-                                                        sliderInput(inputId = "HistoBinWidth",
-                                                                    label = "Select bin width",
-                                                                    min = 1, max = 100, step = ,
-                                                                    value = 30),
-                                                        prettySwitch(
-                                                          inputId = "HistoPlotDensity",
-                                                          label = "Add density distribution", 
-                                                          status = "primary",
-                                                          slim = TRUE),
-                                                        colourInput(inputId = "normDensityFill",
-                                                                    label = "Density plot colour",
-                                                                    palette = "limited",
-                                                                    value = "#666666"),
-                                                        sliderInput(inputId = "DensPlotAlphaChannel", 
-                                                                    label = "Change transparency",
-                                                                    min = 0.1, max = 1, step = 0.1, 
-                                                                    value = 0.4)
-                                                        
-                                                        
-                                               ),
+                                               uiOutput("normality_control1"),
+                                               uiOutput("normality_control2"),
+                                               uiOutput("normality_control3"),
+                                               uiOutput("normality_control4"),
+                                               uiOutput("normality_control5"),
                                                br(),
                                                menuItem(text = "Downloads",
                                                         icon = icon("download"),
@@ -1880,10 +1842,77 @@ server <- function(input, output, session) {
     infovals$countervalue <- 0
   })
 
-  ######### Quality Metrics ###########################
+  #QC_plots------------------------------------------------------------------------------------------------->
+  #ui_logic------------------------------------------------>
+  
+  output$normality_control1 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      ui_widget <- textInput(inputId = "qqPlotTitle",
+                             label = "Plot title",
+                             value = "",
+                             placeholder = "Q-Q plot of ...")
+    } else {
+      ui_widget <- textInput(inputId = "HistoTitle",
+                             label = "Plot title",
+                             value = "",
+                             placeholder = "Histogram of ...")
+    }
+    return(ui_widget)
+  })
+  output$normality_control2 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      ui_widget <- sliderInput(inputId = "qqPointSize",
+                                label = "Change point size",
+                                min = 1, max = 10, step = 1, 
+                                value = 2)
+    } else {
+      ui_widget <- sliderInput(inputId = "HistoBinWidth",
+                               label = "Select bin width",
+                               min = 1, max = 100, step = ,
+                               value = 30)
+    }
+    return(ui_widget)
+  })
+  output$normality_control3 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      ui_widget <- sliderInput(inputId = "qqPlotAlphaChannel", 
+                                label = "Change transparency",
+                                min = 0.1, max = 1, step = 0.1, 
+                                value = 1)
+    } else {
+      ui_widget <- prettySwitch(
+        inputId = "HistoPlotDensity",
+        label = "Add density distribution", 
+        status = "primary",
+        slim = TRUE)
+    }
+    return(ui_widget)
+  })
+  output$normality_control4 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      return(NULL)
+    } else {
+      return(colourInput(inputId = "normDensityFill",
+                         label = "Density plot colour",
+                         palette = "limited",
+                         value = "#666666"))
+    }
+  })
+  output$normality_control5 <- renderUI({
+    if (input$normPlotChoice == "qqPlot") {
+      return(NULL)
+    } else {
+      return(sliderInput(inputId = "DensPlotAlphaChannel", 
+                         label = "Change transparency",
+                         min = 0.1, max = 1, step = 0.1, 
+                         value = 0.4))
+    }
+  })
+  
+  #server_logic--------------------------------------------->
   Counter <- reactiveValues(normcounter = 1,
                             scatcounter = 1)
-  ###Q-Qplots###
+
   
   observeEvent(input$normRender, {
     enable("normPrevious")
@@ -3872,7 +3901,6 @@ server <- function(input, output, session) {
                                                                     data_options = input$string_data_options))
     }
     
-    print(URL)
     return(URL)
   })
   

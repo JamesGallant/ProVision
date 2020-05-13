@@ -314,7 +314,6 @@ string_url_builderDL <- function(protein_querry, sig_thresh, max_nodes, dtype) {
                 max_nodes,
                 "&network_flavor=evidence")
  
-  print(URL) 
   return(URL)
   
   
