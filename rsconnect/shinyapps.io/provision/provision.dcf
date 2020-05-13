@@ -1,0 +1,10 @@
+name: provision
+title:
+username:
+account: provision
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1631420
+bundleId: 3142423
+url: https://provision.shinyapps.io/provision/
+when: 1589381727.90812
