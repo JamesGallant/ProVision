@@ -3169,7 +3169,7 @@ server <- function(input, output, session) {
         if (!is.null(enrichment_data)) {
           enrichment_data = enrichment_data %>%
             arrange(desc(enrichmentRatio)) %>%
-            top_n(input$webgestalt_top_n_slider)
+            slice(1:input$webgestalt_top_n_slider)
         }
         
         validate(
@@ -3185,7 +3185,7 @@ server <- function(input, output, session) {
         if (!is.null(enrichment_data)) {
           enrichment_data = enrichment_data %>%
             arrange(enrichmentRatio) %>%
-            top_n(input$webgestalt_top_n_slider)
+            slice(1:input$webgestalt_top_n_slider)
         }
         
         validate(
@@ -3203,12 +3203,12 @@ server <- function(input, output, session) {
           enrichment_up = enrichment_data %>%
             filter(enrichmentRatio > 0) %>%
             arrange(desc(enrichmentRatio)) %>%
-            top_n(input$webgestalt_top_n_slider)
+            slice(1:input$webgestalt_top_n_slider)
           
           enrichment_down = enrichment_data %>%
             filter(enrichmentRatio < 0) %>%
             arrange(enrichmentRatio) %>%
-            top_n(input$webgestalt_top_n_slider)
+            slice(1:input$webgestalt_top_n_slider)
           
           enrichment_data <- rbind(enrichment_up, enrichment_down)
         }
