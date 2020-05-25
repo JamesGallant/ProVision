@@ -5,7 +5,7 @@
 
 #Modal doesnt load when tut is loaded, need to rename files for it to work.
 #Double check the javascript
-#finish the enrichment build
+
 
 require(shinydashboard)
 require(shiny)
@@ -342,6 +342,12 @@ ui <- dashboardPage(
                                                                         "Purple-Yellow-Green" = "PiYG", 
                                                                         "Brown-Blue-Green" = "BrBG"),
                                                             selected = "RdYlBu"),
+                                               radioButtons(inputId = "correlation_test",
+                                                            label = "Correlation test", 
+                                                            choices = c("Pearson" = "pearson",
+                                                                        "Spearman" = "spearman"), 
+                                                            selected = "pearson", 
+                                                            inline = TRUE),
                                                sliderInput(inputId = "corrSlider", 
                                                            label = "Set lower correlation limit",
                                                            min = 0, max = 1, step = 0.05, value = 0),
@@ -2113,7 +2119,7 @@ server <- function(input, output, session) {
       need(sanityRule == "pass", message = "This plot requires data with no missing values")
     )
     
-    cormatrix = rcorr(as.matrix(d), type='pearson')
+    cormatrix = rcorr(as.matrix(d), type=input$correlation_test)
     cordata = melt(cormatrix$r)
     cordata$labelr = abbreviateSTR(melt(cormatrix$r)$value, 'r')
     cordata$labelP = abbreviateSTR(melt(cormatrix$P)$value, 'P')
