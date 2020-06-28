@@ -1,7 +1,7 @@
 # ProVision
 <div>
-  <img src="/www/media/vidTut.svg" width="290">
-  <img src="/www/media/vidTut.svg" width="290">
+  <img src="/www/media/vidTut.svg" width="450">
+  <img src="/www/media/vidTut.svg" width="450">
 </div>
   
 ProVision is a data analysis dashboard written in the R-shiny framework. This dashboard is designed to analyse label free and TMT proteomics data downstream from maxQuant.
