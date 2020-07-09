@@ -33,6 +33,10 @@ Main figures:
 
 2: Heatmaps
 
+3: Enrichments
+
+5: String networks
+
 Data:
 
 1: Data processed at each pre-processing step
