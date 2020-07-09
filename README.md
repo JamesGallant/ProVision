@@ -44,4 +44,4 @@ Data:
 Full documentation as well as a quick start guide is availible online.
 
 ## Credits
-Packages that makes everything possible: Limma, tidyverse, shiny, shinyjs, shinydashboard, xlsx, pheatmap, data.table, rhandsontable 
+Packages that makes everything possible: Limma, tidyverse, shiny, shinyjs, shinydashboard, xlsx, pheatmap, data.table, rhandsontable. Also the [webgestalt](http://www.webgestalt.org/) and [STRING](https://string-db.org/) API's for their heavy lifting. 
