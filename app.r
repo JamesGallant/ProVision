@@ -63,7 +63,20 @@ ui <- dashboardPage(
                                                actionButton(inputId = "goTut",
                                                             icon = icon("play-circle"),
                                                             label = "Go",
-                                                            style = "width:200px")))),
+                                                            style = "width:200px")), 
+                                      menuItem("Citation", 
+                                               startExpanded = T,
+                                               radioButtons(inputId = "citation_options",
+                                                            label = "Cite this software and it's dependencies",
+                                                            choices = c("All",
+                                                                        "ProVision" = "Provision",
+                                                                        "Limma",
+                                                                        "Webgestalt",
+                                                                        "StringDB" = "String"),
+                                                            selected = "All"),
+                                               downloadButton(outputId = "citation_download", 
+                                                              label = "Download",
+                                                              style="display: block; margin: 0 auto; width: 200px;color: black;")))),
                    #data handling sidebar menu
                    conditionalPanel(condition = "input.main_tabs == 'data_handling'",
                                     sidebarMenu(
@@ -755,6 +768,7 @@ ui <- dashboardPage(
   ), #sidebar close
   
   dashboardBody(useShinyjs(),
+                tags$head(includeHTML("analytics.html")),
                 tags$head(tags$script(HTML("
                     // Enable navigation prompt
                     window.onbeforeunload = function() {
@@ -3550,7 +3564,30 @@ server <- function(input, output, session) {
   
 
   #downlowding--------------------------------------------------------------------------------------------------------->
-  #processed data
+  #Citations------------------------------------------------------------->
+  citation_filename <- reactive({
+    switch (input$citation_options,
+      All = {return("all_citations.ris")},
+      Provision = {return("Provision_citation.ris")},
+      StringDB = {return("StringDB_citation.ris")},
+      Webgestalt = {return("Webgestalt_citation.ris")},
+      Limma = {return("Limma_citation.ris")}
+      
+    )
+  })
+  output$citation_download <- downloadHandler(
+    filename <- function() {
+      citation_filename()
+    },
+    
+    content <- function(file) {
+      citation_file <- input$citation_options
+      file.copy(str_glue("www/data/{citation_file}.ris"), file)
+    },
+    contentType = "application/ris"
+  )
+  
+  #processed data-------------------------------------------------------->
   output$ProcDataSelectorUI <- renderUI({
     if (input$ProcDataDownType == "txt") {
       selectInput(inputId = "ProcDataDownSep",
@@ -4000,7 +4037,6 @@ server <- function(input, output, session) {
       GET(string_url_dl(), write_disk(file))
     }
   )
-
 
   ###about us tab ###
 
