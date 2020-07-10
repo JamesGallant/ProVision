@@ -72,7 +72,7 @@ ui <- dashboardPage(
                                                                         "ProVision" = "Provision",
                                                                         "Limma",
                                                                         "Webgestalt",
-                                                                        "StringDB" = "String"),
+                                                                        "StringDB"),
                                                             selected = "All"),
                                                downloadButton(outputId = "citation_download", 
                                                               label = "Download",
