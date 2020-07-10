@@ -1,0 +1,23 @@
+Provider: Silverchair
+Database: Oxford University Press
+Content: text/plain; charset="UTF-8"
+
+TY  - JOUR
+AU  - Gallant, James Luke
+AU  - Heunis, Tiaan
+AU  - Sampson, Samantha Leigh
+AU  - Bitter, Wilbert
+T1  - ProVision: A web based platform for rapid analysis of proteomics data processed by MaxQuant
+PY  - 2020
+Y1  - 2020/07/08/
+DO  - 10.1093/bioinformatics/btaa620
+M1  - btaa620
+JO  - Bioinformatics
+JA  - Bioinformatics
+SN  - 1367-4803
+AB  - Proteomics is a powerful tool for protein expression analysis and is becoming more readily available to researchers through core facilities or specialised collaborations. However, one major bottleneck for routine implementation and accessibility of this technology to the wider scientific community is the complexity of data analysis. To this end, we have created ProVision, a free open-source web-based analytics platform that allows users to analyse data from two common proteomics relative quantification workflows, namely label-free and tandem mass tag-based experiments. Furthermore, ProVision allows the freedom to interface with the data analysis pipeline while maintaining a user-friendly environment and providing default parameters for fast statistical and exploratory data analysis. Finally, multiple customisable quality control, differential expression plots as well as enrichments and protein-protein interaction prediction can be generated online in one platform.Quick start and step-by-step tutorials as well as tutorial data is fully incorporated in the web application. This application is available online at https://provision.shinyapps.io/provision/ for free use. The source code is available at https://github.com/JamesGallant/ProVision under the GPL version 3.0 license.
+Y2  - 7/10/2020
+UR  - https://doi.org/10.1093/bioinformatics/btaa620
+ER  - 
+
+

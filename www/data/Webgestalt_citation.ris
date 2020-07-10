@@ -1,0 +1,27 @@
+Provider: Silverchair
+Database: Oxford University Press
+Content: text/plain; charset="UTF-8"
+
+TY  - JOUR
+AU  - Liao, Yuxing
+AU  - Wang, Jing
+AU  - Jaehnig, Eric J
+AU  - Shi, Zhiao
+AU  - Zhang, Bing
+T1  - WebGestalt 2019: gene set analysis toolkit with revamped UIs and APIs
+PY  - 2019
+Y1  - 2019/05/22/
+DO  - 10.1093/nar/gkz401
+JO  - Nucleic Acids Research
+JA  - Nucleic Acids Res
+VL  - 47
+IS  - W1
+SP  - W199
+EP  - W205
+SN  - 0305-1048
+AB  - WebGestalt is a popular tool for the interpretation of gene lists derived from large scale -omics studies. In the 2019 update, WebGestalt supports 12 organisms, 342 gene identifiers and 155 175 functional categories, as well as user-uploaded functional databases. To address the growing and unique need for phosphoproteomics data interpretation, we have implemented phosphosite set analysis to identify important kinases from phosphoproteomics data. We have completely redesigned result visualizations and user interfaces to improve user-friendliness and to provide multiple types of interactive and publication-ready figures. To facilitate comprehension of the enrichment results, we have implemented two methods to reduce redundancy between enriched gene sets. We introduced a web API for other applications to get data programmatically from the WebGestalt server or pass data to WebGestalt for analysis. We also wrapped the core computation into an R package called WebGestaltR for users to perform analysis locally or in third party workflows. WebGestalt can be freely accessed at http://www.webgestalt.org.
+Y2  - 7/10/2020
+UR  - https://doi.org/10.1093/nar/gkz401
+ER  - 
+
+
