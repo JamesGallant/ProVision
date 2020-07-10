@@ -9,7 +9,7 @@ If you are intersted in trying it out, you can find the online version here: htt
 
 The aim of this dashboard is to assist researchers in rapidly analysing their proteomics data without requiring prior knowledge of R or the data analysis workflow for proteomics. It is possible to go from file upload to analysed data and corresponding figures within minutes by following the defaults and some minor customising of the graphs. For those who like to spend more time, it is also possible to play around with the parameters and see what works optimally for a specific experiment by leveraging the reactive environment provided by R-shiny.
 
-If you used and liked our application, please cite us: https://doi.org/10.1093/bioinformatics/btaa620
+If you used and liked our application, please cite us: https://doi.org/10.1093/bioinformatics/btaa620 or download the [citation file](www/data/Provision_citation.ris).
 ## Requirements 
 1.ProteinGroups.txt file from MaxQuant. We have also provided tutorial data to play with. 
 
