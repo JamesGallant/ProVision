@@ -1709,7 +1709,6 @@ server <- function(input, output, session) {
     if (dataControl$annoSubmit > 0) {
       reps <- isolate(input$defineReps)
       repsOut <- hot_to_r(reps)
-      print(repsOut)
       return(repsOut)
     } else {
       return(NULL)
