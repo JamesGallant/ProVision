@@ -2124,6 +2124,12 @@ server <- function(input, output, session) {
     
     processed_data <- processed_data()
     anno_data <- anno_data()
+    
+    anno_data$axisLabels <- sapply(anno_data$axisLabels, function(data){
+      data <- str_replace(pattern = "-", replacement = ".", string = data)
+      return(data)
+    })
+    
     colnames(processed_data) <- as.character(anno_data$axisLabels)
     index <- Counter$scatcounter
     plot_list <- list()
