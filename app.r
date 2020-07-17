@@ -768,7 +768,7 @@ ui <- dashboardPage(
   ), #sidebar close
   
   dashboardBody(useShinyjs(),
-                #tags$head(includeHTML("analytics.html")),
+                tags$head(includeHTML("analytics.html")),
                 tags$head(tags$script(HTML("
                     // Enable navigation prompt
                     window.onbeforeunload = function() {
@@ -1709,6 +1709,7 @@ server <- function(input, output, session) {
     if (dataControl$annoSubmit > 0) {
       reps <- isolate(input$defineReps)
       repsOut <- hot_to_r(reps)
+      print(repsOut)
       return(repsOut)
     } else {
       return(NULL)
@@ -2123,12 +2124,12 @@ server <- function(input, output, session) {
     
     processed_data <- processed_data()
     anno_data <- anno_data()
-    colnames(processed_data) <- anno_data$ID
+    colnames(processed_data) <- as.character(anno_data$axisLabels)
     index <- Counter$scatcounter
     plot_list <- list()
     plot.col <- input$scat_point_col
     for(i in unique(anno_data$annotation)){
-      COLS=anno_data$ID[anno_data$annotation ==i]
+      COLS=anno_data$axisLabels[anno_data$annotation ==i]
       plot_combinations <- combn(COLS,
                                  2,
                                  simplify = FALSE)
