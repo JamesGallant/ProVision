@@ -768,7 +768,7 @@ ui <- dashboardPage(
   ), #sidebar close
   
   dashboardBody(useShinyjs(),
-                #tags$head(includeHTML("analytics.html")),
+                tags$head(includeHTML("analytics.html")),
                 tags$head(tags$script(HTML("
                     // Enable navigation prompt
                     window.onbeforeunload = function() {
@@ -1426,7 +1426,8 @@ server <- function(input, output, session) {
                    label = "Choose TMT plex",
                    choices = c("TMT Six plex" = 5,
                                "TMT Ten plex" = 9,
-                               "TMT eleven plex" = 10),
+                               "TMT eleven plex" = 10,
+                               "TMT sixteen plex" = 16),
                    selected = 9)
     }
   })
