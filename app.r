@@ -768,6 +768,7 @@ ui <- dashboardPage(
   ), #sidebar close
   
   dashboardBody(useShinyjs(),
+                #tags$head(includeHTML("analytics.html")),
                 tags$head(tags$script(HTML("
                     // Enable navigation prompt
                     window.onbeforeunload = function() {
@@ -1709,6 +1710,7 @@ server <- function(input, output, session) {
     if (dataControl$annoSubmit > 0) {
       reps <- isolate(input$defineReps)
       repsOut <- hot_to_r(reps)
+      #print(repsOut)
       return(repsOut)
     } else {
       return(NULL)
