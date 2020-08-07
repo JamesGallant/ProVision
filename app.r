@@ -1811,7 +1811,7 @@ server <- function(input, output, session) {
       infoBox(title = "Information",
               value = div("Next step:",
                           br(),
-                          "Filter erroneus IDs"),
+                          "Filter erroneous IDs"),
               icon = icon("info"),
               color = "olive",
               subtitle = "Two unique peptides is the default")
