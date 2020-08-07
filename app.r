@@ -768,7 +768,6 @@ ui <- dashboardPage(
   ), #sidebar close
   
   dashboardBody(useShinyjs(),
-                tags$head(includeHTML("analytics.html")),
                 tags$head(tags$script(HTML("
                     // Enable navigation prompt
                     window.onbeforeunload = function() {
